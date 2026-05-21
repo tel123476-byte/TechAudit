@@ -61,8 +61,9 @@
   --r2:       11px;
 }
 
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);overflow:hidden;font-size:13px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--txt);overflow:hidden;font-size:13px;-webkit-font-smoothing:antialiased;touch-action:manipulation}
+button,label,.btn,.am-card,.am-tbtn,.ftab,.mk{cursor:pointer;touch-action:manipulation}
 #app{display:flex;flex-direction:column;height:100vh}
 
 /* ── TOPBAR ──────────────────────────────────────────────────── */
@@ -100,6 +101,8 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
   font-family:'Inter',sans-serif;font-size:11px;font-weight:600;
   border:none;cursor:pointer;white-space:nowrap;
   transition:all .15s;letter-spacing:.1px;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;
 }
 .btn-g{background:transparent;color:var(--txt2);border:1px solid var(--border)}
 .btn-g:hover{background:var(--bg3);color:var(--txt);border-color:var(--border2)}
@@ -2023,16 +2026,16 @@ function renderAuditManager() {
     else if (hasPlans || a.ready) { sCls='am-st-ready';  sTxt='◉ Připravený'; }
     else                          { sCls='am-st-empty';  sTxt='○ Prázdný'; }
     var defCls = (a.defectCount > 0) ? 'am-tdef am-tdef-hi' : 'am-tdef am-tdef-ok';
-    return '<tr onclick="openAudit(\''+a.id+'\')">'+
-      '<td>'+
+    return '<tr>'+
+      '<td style="cursor:pointer" onclick="openAudit(\''+a.id+'\')">'+
         '<div class="am-tobj">'+esc(a.objekt||'Nepojmenovaný audit')+'</div>'+
       '</td>'+
-      '<td style="color:#6b7f92;font-size:11px">'+(esc(a.auditor)||'—')+'</td>'+
-      '<td style="color:#6b7f92;font-size:11px;white-space:nowrap">'+(a.datum||'—')+'</td>'+
-      '<td style="text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:600;color:#2a3a4a">'+(a.floorCount||0)+'</td>'+
-      '<td style="text-align:center"><span class="'+defCls+'">'+(a.defectCount||0)+'</span></td>'+
-      '<td><span class="'+sCls+'">'+sTxt+'</span></td>'+
-      '<td style="color:#a0afbe;font-size:11px;white-space:nowrap">'+(a.updatedAt||'—')+'</td>'+
+      '<td style="color:#6b7f92;font-size:11px;cursor:pointer" onclick="openAudit(\''+a.id+'\')">'+(esc(a.auditor)||'—')+'</td>'+
+      '<td style="color:#6b7f92;font-size:11px;white-space:nowrap;cursor:pointer" onclick="openAudit(\''+a.id+'\')">'+(a.datum||'—')+'</td>'+
+      '<td style="text-align:center;font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:600;color:#2a3a4a;cursor:pointer" onclick="openAudit(\''+a.id+'\')">'+(a.floorCount||0)+'</td>'+
+      '<td style="text-align:center;cursor:pointer" onclick="openAudit(\''+a.id+'\')"><span class="'+defCls+'">'+(a.defectCount||0)+'</span></td>'+
+      '<td style="cursor:pointer" onclick="openAudit(\''+a.id+'\')"><span class="'+sCls+'">'+sTxt+'</span></td>'+
+      '<td style="color:#a0afbe;font-size:11px;white-space:nowrap;cursor:pointer" onclick="openAudit(\''+a.id+'\')">'+(a.updatedAt||'—')+'</td>'+
       '<td onclick="event.stopPropagation()">'+
         '<div class="am-tactions">'+
           '<button class="am-tbtn am-tbtn-open" onclick="openAudit(\''+a.id+'\')">▶ Otevřít</button>'+
