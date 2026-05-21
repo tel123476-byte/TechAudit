@@ -1378,6 +1378,61 @@ async function ensureDefaultAdmin() {
   } catch(e) { console.warn('ensureDefaultAdmin:', e); }
 }
 
+// ── iOS DEBUG PANEL ───────────────────────────────────────────
+(function(){
+  var dbg = document.createElement('div');
+  dbg.id = 'ios-debug';
+  dbg.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:rgba(0,0,0,.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;z-index:9999;max-height:35vh;overflow-y:auto;display:none';
+  document.body.appendChild(dbg);
+
+  // Zobraz debug tlačítko
+  var btn = document.createElement('button');
+  btn.textContent = '🐛';
+  btn.style.cssText = 'position:fixed;bottom:10px;right:10px;z-index:10000;background:#ff4444;color:#fff;border:none;border-radius:50%;width:44px;height:44px;font-size:20px;cursor:pointer';
+  btn.addEventListener('click', function(){
+    dbg.style.display = dbg.style.display === 'none' ? 'block' : 'none';
+  });
+  document.body.appendChild(btn);
+
+  function log(msg, color) {
+    var line = document.createElement('div');
+    line.style.color = color || '#0f0';
+    line.textContent = new Date().toLocaleTimeString() + ' ' + msg;
+    dbg.appendChild(line);
+    dbg.scrollTop = dbg.scrollHeight;
+  }
+
+  // Zachyť JS chyby
+  window.onerror = function(msg, src, line, col, err) {
+    log('ERROR: ' + msg + ' (line ' + line + ')', '#f44');
+    dbg.style.display = 'block';
+    return false;
+  };
+  window.addEventListener('unhandledrejection', function(e) {
+    log('PROMISE ERROR: ' + e.reason, '#f84');
+    dbg.style.display = 'block';
+  });
+
+  // Zachyť console.log
+  var origLog = console.log;
+  var origWarn = console.warn;
+  var origError = console.error;
+  console.log = function() { origLog.apply(console, arguments); log(Array.from(arguments).join(' '), '#0f0'); };
+  console.warn = function() { origWarn.apply(console, arguments); log('WARN: ' + Array.from(arguments).join(' '), '#ff0'); };
+  console.error = function() { origError.apply(console, arguments); log('ERR: ' + Array.from(arguments).join(' '), '#f44'); dbg.style.display = 'block'; };
+
+  log('Debug panel aktivní — iOS ' + navigator.userAgent.match(/OS [\d_]+/));
+  log('Touch support: ' + ('ontouchstart' in window));
+
+  // Test onclick
+  document.addEventListener('click', function(e) {
+    log('CLICK na: ' + e.target.tagName + ' class=' + e.target.className.substring(0,30), '#0ff');
+  });
+  document.addEventListener('touchend', function(e) {
+    log('TOUCH na: ' + e.target.tagName + ' id=' + e.target.id, '#ff0');
+  }, {passive:true});
+})();
+
 // ── iOS SAFARI TOUCH FIX ─────────────────────────────────────
 // Na iOS Safari onclick funguje pouze na elementech s cursor:pointer
 // Toto je nejjednodušší a nejspolehlivější řešení
