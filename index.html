@@ -1434,7 +1434,29 @@ async function ensureDefaultAdmin() {
 })();
 
 // ── iOS SAFARI TOUCH FIX ─────────────────────────────────────
-// iOS Safari nespustí onclick na DIV pokud nemá cursor:pointer inline
+// iOS Safari nespustí onclick na DIV — spustíme ho manuálně přes touchend
+document.addEventListener('touchend', function(e) {
+  var node = e.target;
+  for (var i = 0; i < 10; i++) {
+    if (!node || node === document.body) break;
+    var tag = node.tagName;
+    // Button, input, a — ty iOS zpracuje sám
+    if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A' || tag === 'SELECT') break;
+    var fn = node.getAttribute && node.getAttribute('onclick');
+    if (fn) {
+      try {
+        new Function('event', fn).call(node, e);
+        console.log('iOS fix: onclick na ' + tag + '#' + node.id);
+      } catch(err) {
+        console.error('iOS fix: ' + err.message);
+      }
+      return;
+    }
+    node = node.parentElement;
+  }
+}, {passive: true});
+
+// cursor:pointer fix pro iOS (záloha)
 document.addEventListener('DOMContentLoaded', function() {
   function fixOnclick(root) {
     (root || document).querySelectorAll('[onclick]').forEach(function(el) {
@@ -1442,7 +1464,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   fixOnclick();
-  // Pro dynamicky generované elementy (tabulka auditů atd.)
   new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
       m.addedNodes.forEach(function(n) {
