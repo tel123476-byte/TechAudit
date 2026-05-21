@@ -1434,29 +1434,22 @@ async function ensureDefaultAdmin() {
 })();
 
 // ── iOS SAFARI TOUCH FIX ─────────────────────────────────────
-// Na iOS Safari onclick funguje pouze na elementech s cursor:pointer
-// Toto je nejjednodušší a nejspolehlivější řešení
+// iOS Safari nespustí onclick na DIV pokud nemá cursor:pointer inline
 document.addEventListener('DOMContentLoaded', function() {
-  // Přidej cursor:pointer na všechny elementy s onclick
-  document.querySelectorAll('[onclick]').forEach(function(el) {
-    el.style.cursor = 'pointer';
-  });
-  // Observer pro dynamicky přidané elementy
-  var observer = new MutationObserver(function(mutations) {
+  function fixOnclick(root) {
+    (root || document).querySelectorAll('[onclick]').forEach(function(el) {
+      el.style.cursor = 'pointer';
+    });
+  }
+  fixOnclick();
+  // Pro dynamicky generované elementy (tabulka auditů atd.)
+  new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
-      m.addedNodes.forEach(function(node) {
-        if (node.querySelectorAll) {
-          node.querySelectorAll('[onclick]').forEach(function(el) {
-            el.style.cursor = 'pointer';
-          });
-          if (node.hasAttribute && node.hasAttribute('onclick')) {
-            node.style.cursor = 'pointer';
-          }
-        }
+      m.addedNodes.forEach(function(n) {
+        if (n.nodeType === 1) fixOnclick(n);
       });
     });
-  });
-  observer.observe(document.body, {childList: true, subtree: true});
+  }).observe(document.body, {childList: true, subtree: true});
 });
 
 // ── PWA — SERVICE WORKER + INSTALL PROMPT ────────────────────
