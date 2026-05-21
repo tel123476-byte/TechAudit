@@ -256,8 +256,8 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
 #view::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* Upload zone */
-#upzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-#upbox{
+#upzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#upzone input[type="file"]{position:absolute;width:1px;height:1px;opacity:0}#upbox{
   border:2px dashed var(--border2);border-radius:14px;
   padding:44px 56px;text-align:center;
   background:var(--bg2);transition:all .2s;cursor:pointer;
@@ -891,14 +891,25 @@ html,body{height:100%;font-family:'Inter',system-ui,sans-serif;background:var(--
     </div>
     <div id="ptabs"></div>
     <div id="view">
-      <label id="upzone">
-        <input type="file" accept="image/*,.pdf,application/pdf" onchange="onFile(this.files[0]);this.value=''">
+      <label id="upzone" for="upzone-input">
+        <input type="file" id="upzone-input" accept="image/*,.pdf,application/pdf" onchange="onFile(this.files[0]);this.value=''">
         <div id="upbox">
           <div class="uico">📐</div>
           <div class="utit" id="upzone-title">Nahrát výkres podlaží</div>
           <div class="usub" id="upzone-sub">Klikněte nebo přetáhněte soubor<br>PDF nebo obrázek (JPG, PNG)</div>
           <div class="ufmts">
             <span class="ufmt pdf">PDF</span><span class="ufmt">JPG</span><span class="ufmt">PNG</span>
+          </div>
+          <!-- Extra tlačítko pro iPad/iPhone -->
+          <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <label style="display:inline-flex;align-items:center;gap:6px;padding:12px 20px;background:#0d9488;color:#fff;border-radius:8px;font-family:Inter,sans-serif;font-size:14px;font-weight:600;cursor:pointer;min-height:48px">
+              📁 Vybrat soubor
+              <input type="file" accept="image/*,.pdf,application/pdf" onchange="onFile(this.files[0]);this.value=''" style="display:none">
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:6px;padding:12px 20px;background:#1e3a5f;color:#fff;border-radius:8px;font-family:Inter,sans-serif;font-size:14px;font-weight:600;cursor:pointer;min-height:48px">
+              📷 Vyfotit
+              <input type="file" accept="image/*" capture="environment" onchange="onFile(this.files[0]);this.value=''" style="display:none">
+            </label>
           </div>
         </div>
       </label>
