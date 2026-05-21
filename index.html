@@ -259,8 +259,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk{cursor:pointer;touch-action:manipu
 #view::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 
 /* Upload zone */
-#upzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
-#upzone input[type="file"]{position:absolute;width:1px;height:1px;opacity:0}#upbox{
+#upzone{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}#upbox{
   border:2px dashed var(--border2);border-radius:14px;
   padding:44px 56px;text-align:center;
   background:var(--bg2);transition:all .2s;cursor:pointer;
@@ -894,8 +893,8 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk{cursor:pointer;touch-action:manipu
     </div>
     <div id="ptabs"></div>
     <div id="view">
-      <label id="upzone" for="upzone-input">
-        <input type="file" id="upzone-input" accept="image/*,.pdf,application/pdf" onchange="onFile(this.files[0]);this.value=''">
+      <div id="upzone" onclick="document.getElementById('upzone-file-input').click()">
+        <input type="file" id="upzone-file-input" accept="image/*,.pdf,application/pdf" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none" onchange="onFile(this.files[0]);this.value=''">
         <div id="upbox">
           <div class="uico">📐</div>
           <div class="utit" id="upzone-title">Nahrát výkres podlaží</div>
@@ -903,19 +902,17 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk{cursor:pointer;touch-action:manipu
           <div class="ufmts">
             <span class="ufmt pdf">PDF</span><span class="ufmt">JPG</span><span class="ufmt">PNG</span>
           </div>
-          <!-- Extra tlačítko pro iPad/iPhone -->
-          <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-            <label style="display:inline-flex;align-items:center;gap:6px;padding:12px 20px;background:#0d9488;color:#fff;border-radius:8px;font-family:Inter,sans-serif;font-size:14px;font-weight:600;cursor:pointer;min-height:48px">
+          <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap" onclick="event.stopPropagation()">
+            <button type="button" onclick="document.getElementById('upzone-file-input').click()" style="display:inline-flex;align-items:center;gap:6px;padding:14px 22px;background:#0d9488;color:#fff;border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:15px;font-weight:600;cursor:pointer;min-height:52px;touch-action:manipulation">
               📁 Vybrat soubor
-              <input type="file" accept="image/*,.pdf,application/pdf" onchange="onFile(this.files[0]);this.value=''" style="display:none">
-            </label>
-            <label style="display:inline-flex;align-items:center;gap:6px;padding:12px 20px;background:#1e3a5f;color:#fff;border-radius:8px;font-family:Inter,sans-serif;font-size:14px;font-weight:600;cursor:pointer;min-height:48px">
+            </button>
+            <button type="button" onclick="document.getElementById('upzone-camera-input').click()" style="display:inline-flex;align-items:center;gap:6px;padding:14px 22px;background:#1e3a5f;color:#fff;border:none;border-radius:10px;font-family:Inter,sans-serif;font-size:15px;font-weight:600;cursor:pointer;min-height:52px;touch-action:manipulation">
               📷 Vyfotit
-              <input type="file" accept="image/*" capture="environment" onchange="onFile(this.files[0]);this.value=''" style="display:none">
-            </label>
+            </button>
+            <input type="file" id="upzone-camera-input" accept="image/*" capture="environment" style="display:none" onchange="onFile(this.files[0]);this.value=''">
           </div>
         </div>
-      </label>
+      </div>
       <div id="pload">
         <div class="spin"></div>
         <div class="ltit">Načítám PDF...</div>
