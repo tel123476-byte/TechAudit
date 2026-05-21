@@ -1378,6 +1378,53 @@ async function ensureDefaultAdmin() {
   } catch(e) { console.warn('ensureDefaultAdmin:', e); }
 }
 
+// ── iOS SAFARI TOUCH FIX ─────────────────────────────────────
+// Na iOS Safari onclick nefunguje na div/td elementech
+// Řešení: zachytit touchend a spustit click
+(function(){
+  var touchMoved = false;
+  var touchStartX = 0;
+  var touchStartY = 0;
+
+  document.addEventListener('touchstart', function(e) {
+    touchMoved = false;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, {passive: true});
+
+  document.addEventListener('touchmove', function(e) {
+    var dx = Math.abs(e.touches[0].clientX - touchStartX);
+    var dy = Math.abs(e.touches[0].clientY - touchStartY);
+    if (dx > 10 || dy > 10) touchMoved = true;
+  }, {passive: true});
+
+  document.addEventListener('touchend', function(e) {
+    if (touchMoved) return;
+    var el = e.target;
+    // Najdi klikatelný element nahoru po DOM stromě
+    var clickable = null;
+    var node = el;
+    for (var i = 0; i < 8; i++) {
+      if (!node) break;
+      var tag = node.tagName;
+      var hasOnclick = node.hasAttribute && node.hasAttribute('onclick');
+      var isBtn = tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'LABEL';
+      if (hasOnclick || isBtn) {
+        clickable = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+    if (clickable && clickable.tagName !== 'BUTTON' && clickable.tagName !== 'A' && clickable.tagName !== 'INPUT') {
+      // Spusť onclick manuálně
+      var onclickAttr = clickable.getAttribute('onclick');
+      if (onclickAttr) {
+        try { new Function('event', onclickAttr).call(clickable, e); } catch(err) { console.warn('touch onclick error:', err); }
+      }
+    }
+  }, {passive: true});
+})();
+
 // ── PWA — SERVICE WORKER + INSTALL PROMPT ────────────────────
 var deferredInstallPrompt = null;
 
