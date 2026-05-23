@@ -3017,6 +3017,8 @@ async function exportExcel(){
   toast('✓ Excel stažen: '+fn);
 }
 
+function __orphanReportCode_DISABLED(){  // pozůstatek nedokončené úpravy — zabaleno, aby nepadalo
+  var all = (typeof allDefects==='function'?allDefects():[]);
   var aud = document.getElementById('iaud').value||'—';
   var obj = document.getElementById('iobj').value||'—';
   var dv  = document.getElementById('idat').value||'';
@@ -3226,6 +3228,7 @@ async function exportExcel(){
   XLSX.utils.book_append_sheet(wb, ws1, 'Záznamy vad');
   XLSX.utils.book_append_sheet(wb, ws2, 'Finanční přehled');
   XLSX.utils.book_append_sheet(wb, ws3, 'Přehled podlaží');
+}
 
 function exportJson(){
   var aud = document.getElementById('iaud').value||'—';
