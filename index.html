@@ -1438,7 +1438,11 @@ async function ensureDefaultAdmin() {
 
     var n = e.target;
     while (n && n !== document.body) {
-      if (n.tagName === 'INPUT' || n.tagName === 'TEXTAREA' || n.tagName === 'SELECT') return;
+      if (n.tagName === 'INPUT' || n.tagName === 'TEXTAREA' || n.tagName === 'SELECT') {
+        // iPad sám občas nedá fokus — uděláme to ručně
+        try { n.focus(); } catch(err){}
+        return;
+      }
       // LABEL s vnořeným <input type=file> — klikni na input
       if (n.tagName === 'LABEL') {
         var inp = n.querySelector('input[type=file]');
