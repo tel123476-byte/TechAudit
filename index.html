@@ -1415,11 +1415,13 @@ async function ensureDefaultAdmin() {
 
 // iOS touch fix odstraněn — způsoboval, že se onclick na BUTTON nespouštěl
 
-// ── iOS FALLBACK: ručně spusť onclick po touchend ──────────────
-// Některé iPady přestanou po touchend generovat click event ani .click() nefunguje.
-// Tento fix to obejde — po krátkém klepnutí přímo spustí onclick funkci.
+// ── iOS TOUCH-TO-CLICK ─────────────────────────────────────────
+// iPad někdy negeneruje click event po touchend. Spustíme onclick přímo.
+// Aby to nedoublovalo na klasických prohlížečích, nastavíme "ignore click" flag.
 (function(){
   var ts = null;
+  var ignoreClickUntil = 0;
+
   document.addEventListener('touchstart', function(e){
     if (e.touches.length !== 1) { ts = null; return; }
     ts = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
@@ -1430,43 +1432,43 @@ async function ensureDefaultAdmin() {
     var dt = Date.now() - ts.t;
     var tch = e.changedTouches[0];
     var dx = Math.abs(tch.clientX - ts.x), dy = Math.abs(tch.clientY - ts.y);
-    var startTs = ts;
     ts = null;
     // Jen krátké klepnutí bez tažení (= klepnutí, ne scroll)
     if (dt > 500 || dx > 10 || dy > 10) return;
 
-    // Cíl: najdi nejbližšího předka s onclick atributem
     var n = e.target;
     while (n && n !== document.body) {
-      // INPUT, TEXTAREA, SELECT — needirovat (klávesnice, výběry)
       if (n.tagName === 'INPUT' || n.tagName === 'TEXTAREA' || n.tagName === 'SELECT') return;
-      var fn = n.getAttribute && n.getAttribute('onclick');
-      if (fn) {
-        // Počkej, jestli iPad pošle click sám — pokud ano, nedělej nic
-        var clickFired = false;
-        var oneClick = function(){ clickFired = true; };
-        n.addEventListener('click', oneClick, {once: true, capture: true});
-        setTimeout(function(){
-          n.removeEventListener('click', oneClick, {capture: true});
-          if (!clickFired) {
-            // iPad nepostal click — spustíme onclick funkci přímo
-            try { new Function('event', fn).call(n, e); }
-            catch(err) { console.error('iOS fallback err:', err); }
-          }
-        }, 300);
-        return;
-      }
-      // LABEL s vnořeným inputem (file upload) - simuluj click
+      // LABEL s vnořeným <input type=file> — klikni na input
       if (n.tagName === 'LABEL') {
         var inp = n.querySelector('input[type=file]');
-        if (inp) {
-          setTimeout(function(){ try{ inp.click(); }catch(err){} }, 0);
-        }
+        if (inp) { try{ inp.click(); }catch(err){} return; }
+      }
+      var fn = n.getAttribute && n.getAttribute('onclick');
+      if (fn) {
+        ignoreClickUntil = Date.now() + 600;
+        try { new Function('event', fn).call(n, e); }
+        catch(err) { console.error('touch handler:', err); }
         return;
       }
       n = n.parentElement;
     }
   }, {passive: true, capture: true});
+
+  // Pokud iPad pošle click do 600ms po touchend, ignoruj (už jsme spustili onclick)
+  document.addEventListener('click', function(e){
+    if (Date.now() < ignoreClickUntil) {
+      var n = e.target;
+      while (n && n !== document.body) {
+        if (n.getAttribute && n.getAttribute('onclick')) {
+          e.stopPropagation();
+          e.preventDefault();
+          return;
+        }
+        n = n.parentElement;
+      }
+    }
+  }, true);
 })();
 
 // cursor:pointer fix pro iOS (záloha)
