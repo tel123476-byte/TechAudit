@@ -2468,6 +2468,13 @@ function switchFloor(i){
   curFloor=i;
   document.querySelectorAll('.ftab').forEach(function(b,j){b.classList.toggle('act',j===i);});
   var f = floor();
+  // Hned schováme starý výkres, ať při přepínání není stará pole vidět
+  document.getElementById('planwrap').style.display='none';
+  document.getElementById('upzone').style.display='flex';
+  document.getElementById('hintbar').style.display='none';
+  document.getElementById('sdot').classList.add('off');
+  document.getElementById('stxt').textContent='Podlaží: '+f.name+(f.loaded?' · Načítám…':' · Nahrajte výkres');
+  hideTabs();
   if (f.loaded && f.planSrc) {
     showPlan(f.planSrc, true);
     if(f.pdfPages.length>1)buildTabs(f.pdfPages.length);
@@ -2475,17 +2482,13 @@ function switchFloor(i){
   } else {
     // Zkus IDB
     loadFloorPlan(f).then(function(ok) {
+      if (curFloor !== i) return;  // mezitím se přepnulo jinam
       if (ok) {
         showPlan(f.planSrc, true);
         if(f.pdfPages.length>1)buildTabs(f.pdfPages.length);
         else hideTabs();
       } else {
-        document.getElementById('planwrap').style.display='none';
-        document.getElementById('upzone').style.display='flex';
-        document.getElementById('hintbar').style.display='none';
-        document.getElementById('sdot').classList.add('off');
         document.getElementById('stxt').textContent='Podlaží: '+f.name+' · Nahrajte výkres';
-        hideTabs();
       }
     });
   }
