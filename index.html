@@ -2547,7 +2547,9 @@ function loadIMG(f){
   var r=new FileReader();
   r.onload=function(e){
     floor().pdfPages=[];floor().curPage=0;
+    floor().zoom=0.3;  // výchozí zoom 30 % po nahrání
     hideTabs();showPlan(e.target.result,false);
+    var zv=document.getElementById('zv'); if(zv) zv.textContent='30%';
     // Ulož do IDB
     saveFloorPlan(floor());
   };
@@ -2569,7 +2571,9 @@ async function loadPDF(f){
       floor().pdfPages.push(cv.toDataURL('image/png'));
     }
     el.style.display='none';floor().curPage=0;
+    floor().zoom=0.3;  // výchozí zoom 30 % po nahrání PDF
     buildTabs(n);showPlan(floor().pdfPages[0],false);
+    var zv=document.getElementById('zv'); if(zv) zv.textContent='30%';
     // Ulož do IDB
     saveFloorPlan(floor());
     toast('✓ PDF načten — '+n+' str. ('+floor().name+')');
