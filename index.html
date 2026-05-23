@@ -1415,6 +1415,48 @@ async function ensureDefaultAdmin() {
 
 // iOS touch fix odstraněn — způsoboval, že se onclick na BUTTON nespouštěl
 
+// ── iOS FALLBACK: ručně vystřel click po touchend ──────────────
+// Některé iPady přestanou po touchend generovat click event.
+// Tento fix to obejde — sleduje touchstart a po touchend zavolá .click() ručně.
+(function(){
+  var ts = null;
+  document.addEventListener('touchstart', function(e){
+    if (e.touches.length !== 1) { ts = null; return; }
+    ts = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now(), target: e.target };
+  }, {passive: true, capture: true});
+
+  document.addEventListener('touchend', function(e){
+    if (!ts) return;
+    var dt = Date.now() - ts.t;
+    var tch = e.changedTouches[0];
+    var dx = Math.abs(tch.clientX - ts.x), dy = Math.abs(tch.clientY - ts.y);
+    // Jen pokud byl dotyk krátký a prst se nepohnul (= klepnutí, ne tažení/scroll)
+    if (dt < 500 && dx < 10 && dy < 10) {
+      var clickFired = false;
+      var oneClick = function(){ clickFired = true; };
+      ts.target.addEventListener('click', oneClick, {once: true, capture: true});
+      // Počkej, jestli iPad pošle click sám
+      setTimeout(function(){
+        ts.target.removeEventListener('click', oneClick, {capture: true});
+        if (!clickFired) {
+          // iPad nepostal click — vystřelíme ho sami
+          var realTarget = ts.target;
+          // Najdi nejbližšího předka s onclick / s .click() handlerem
+          var node = realTarget;
+          while (node && node !== document.body) {
+            if (node.tagName === 'BUTTON' || node.tagName === 'A' || node.tagName === 'LABEL' || (node.getAttribute && node.getAttribute('onclick'))) {
+              try { node.click(); } catch(err) {}
+              break;
+            }
+            node = node.parentElement;
+          }
+        }
+      }, 350);
+    }
+    ts = null;
+  }, {passive: true, capture: true});
+})();
+
 // cursor:pointer fix pro iOS (záloha)
 document.addEventListener('DOMContentLoaded', function() {
   function fixOnclick(root) {
