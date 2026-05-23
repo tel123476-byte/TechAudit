@@ -975,6 +975,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
           </optgroup>
         </select>
       </div>
+      <div class="fg"><div class="fl">Název vady</div><input class="fi" id="ptitle" placeholder="krátký název, např. Prasklá omítka"></div>
       <div class="fg"><div class="fl">Popis vady</div><textarea class="fta" id="pdesc" placeholder="Popište nalezenou vadu..."></textarea></div>
       <div class="fg"><div class="fl">Umístění v podlaží</div><input class="fi" id="ploc" placeholder="např. chodba, kancelář č.3, serverovna"></div>
       <div class="fg"><div class="fl">Doporučené řešení</div><textarea class="fta" id="psol" placeholder="Navrhněte způsob odstranění..." style="min-height:50px"></textarea></div>
@@ -1042,6 +1043,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
           </optgroup>
         </select>
       </div>
+      <div class="fg"><div class="fl">Název vady</div><input class="fi" id="mtitle" placeholder="krátký název, např. Prasklá omítka"></div>
       <div class="fg"><div class="fl">Popis vady *</div><textarea class="fta" id="mdesc" placeholder="Stručně popište nalezenou vadu..."></textarea></div>
       <div class="fg"><div class="fl">Umístění v podlaží</div><input class="fi" id="mloc" placeholder="např. chodba, kancelář č.3"></div>
       <div class="fg">
@@ -2676,6 +2678,7 @@ document.getElementById('view').addEventListener('wheel',function(e){
 function openMod(px,py){
   pending={px:px,py:py,page:floor().curPage,floorId:floor().id,floorName:floor().name};
   mPhotos=[];
+  document.getElementById('mtitle').value='';
   document.getElementById('mdesc').value='';
   document.getElementById('mloc').value='';
   document.getElementById('mdisc').value='';
@@ -2694,6 +2697,7 @@ function confirmAdd(){
   if(!desc){document.getElementById('mdesc').style.borderColor='#f74f4f';setTimeout(function(){document.getElementById('mdesc').style.borderColor='';},1400);return;}
   var d={
     id:nid++,type:aType,desc:desc,
+    title:document.getElementById('mtitle').value.trim(),
     discipline:document.getElementById('mdisc').value,
     location:document.getElementById('mloc').value.trim(),
     price:parseFloat(document.getElementById('mprice').value)||0,
@@ -2761,7 +2765,7 @@ function renderList(){
         '<div class="dnum">#'+String(d.id).padStart(2,'0')+'</div>' +
         '<div class="ddot" style="background:'+cat.color+'"></div>' +
         '<div class="dinf">' +
-          '<div class="dtit">'+esc(d.desc)+'</div>' +
+          '<div class="dtit">'+esc(d.title||d.desc)+'</div>' +
           '<div class="dmet">'+(d.discipline?esc(d.discipline)+' · ':'')+esc(d.location||cat.label)+' · '+d.time+'</div>' +
         '</div>'+thumb+
         '<button class="ddel" onclick="event.stopPropagation();delDefById('+d.id+')">✕</button>' +
@@ -2813,6 +2817,7 @@ function openPanel(id){
   var fi=floors.findIndex(function(f){return f.defects.some(function(x){return x.id===id;});});
   if(fi>=0&&fi!==curFloor){curFloor=fi;renderFloorTabs();loadFloorView();}
   fillCatSelect(d.type);
+  document.getElementById('ptitle').value=d.title||'';
   document.getElementById('pdesc').value=d.desc;
   document.getElementById('ploc').value=d.location;
   document.getElementById('psol').value=d.solution;
@@ -2839,6 +2844,7 @@ function addPh(files){
 function savePanel(){
   var d=findDefect(aId);if(!d)return;
   d.type=document.getElementById('pcat').value;
+  d.title=document.getElementById('ptitle').value.trim();
   d.desc=document.getElementById('pdesc').value.trim()||d.desc;
   d.location=document.getElementById('ploc').value.trim();
   d.discipline=document.getElementById('pdisc').value;
