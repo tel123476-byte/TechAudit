@@ -1413,27 +1413,7 @@ async function ensureDefaultAdmin() {
   }, true);
 })();
 
-// ── iOS SAFARI TOUCH FIX ─────────────────────────────────────
-// iOS Safari nespustí onclick na DIV — spustíme ho manuálně přes touchend
-document.addEventListener('touchend', function(e) {
-  var node = e.target;
-  for (var i = 0; i < 10; i++) {
-    if (!node || node === document.body) break;
-    var tag = node.tagName;
-    // Button, input, a, label — ty iOS zpracuje sám
-    if (tag === 'BUTTON' || tag === 'INPUT' || tag === 'A' || tag === 'SELECT' || tag === 'LABEL' || tag === 'TEXTAREA') break;
-    var fn = node.getAttribute && node.getAttribute('onclick');
-    if (fn) {
-      try {
-        new Function('event', fn).call(node, e);
-      } catch(err) {
-        console.error('iOS fix: ' + err.message);
-      }
-      return;
-    }
-    node = node.parentElement;
-  }
-}, {passive: true});
+// iOS touch fix odstraněn — způsoboval, že se onclick na BUTTON nespouštěl
 
 // cursor:pointer fix pro iOS (záloha)
 document.addEventListener('DOMContentLoaded', function() {
