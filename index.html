@@ -2635,13 +2635,39 @@ document.getElementById('view').addEventListener('wheel',function(e){
 },{passive:false});
 
 // ── CLICK ON PLAN ──────────────────────────────────────────────
-document.getElementById('planbox').addEventListener('click',function(e){
-  if(!floor().loaded)return;
-  if(e.target.closest('.mk'))return;
-  var img=document.getElementById('planimg');
-  var r=img.getBoundingClientRect();
-  openMod(((e.clientX-r.left)/r.width)*100,((e.clientY-r.top)/r.height)*100);
-});
+(function(){
+  var planTs = null;
+  function handlePlanTap(e, clientX, clientY) {
+    if(!floor() || !floor().loaded) return;
+    if(e.target.closest && e.target.closest('.mk')) return;
+    var img=document.getElementById('planimg');
+    var r=img.getBoundingClientRect();
+    openMod(((clientX-r.left)/r.width)*100,((clientY-r.top)/r.height)*100);
+  }
+  var box = document.getElementById('planbox');
+  box.addEventListener('click',function(e){
+    // Pokud touch fix právě spustil tap, click ignoruj
+    if (planTs && Date.now() - planTs.t < 600) return;
+    handlePlanTap(e, e.clientX, e.clientY);
+  });
+  // iPad fallback — touchend pro klepnutí prstem
+  box.addEventListener('touchstart', function(e){
+    if (e.touches.length !== 1) { planTs = null; return; }
+    planTs = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+  }, {passive: true});
+  box.addEventListener('touchend', function(e){
+    if (!planTs) return;
+    var dt = Date.now() - planTs.t;
+    var tch = e.changedTouches[0];
+    var dx = Math.abs(tch.clientX - planTs.x), dy = Math.abs(tch.clientY - planTs.y);
+    if (dt < 500 && dx < 10 && dy < 10) {
+      planTs.t = Date.now();  // poznamenej kdy jsme spustili
+      handlePlanTap(e, tch.clientX, tch.clientY);
+    } else {
+      planTs = null;
+    }
+  }, {passive: true});
+})();
 
 // ── ADD DEFECT MODAL ───────────────────────────────────────────
 function openMod(px,py){
