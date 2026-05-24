@@ -3023,7 +3023,7 @@ async function exportExcel(){
   data1.push(['TECHNICKÝ AUDIT — ' + obj.toUpperCase(), '', '', '', '', '', '', '', '']);
   data1.push(['Auditor: '+aud+'   |   Datum: '+dv+'   |   Export: '+ts, '', '', '', '', '', '', '', '']);
   data1.push(['', '', '', '', '', '', '', '', '']);
-  data1.push(['#', 'Podlaží', 'Kategorie', 'Disciplína / Systém', 'Popis vady', 'Umístění', 'Návrh opravy', 'Odhad ceny (Kč)', 'Čas']);
+  data1.push(['#', 'Podlaží', 'Kategorie', 'Disciplína / Systém', 'Název vady', 'Popis vady', 'Umístění', 'Návrh opravy', 'Odhad ceny (Kč)', 'Čas']);
 
   all.forEach(function(d){
     var cat = catByKey(d.type);
@@ -3032,6 +3032,7 @@ async function exportExcel(){
       d.floorName||'—',
       cat.label,
       d.discipline||'—',
+      d.title||'',
       d.desc||'',
       d.location||'—',
       d.solution||'—',
@@ -3039,11 +3040,11 @@ async function exportExcel(){
       d.time||''
     ]);
   });
-  data1.push(['CELKEM', '', '', '', '', '', all.length + ' vad', totalPrice, '']);
+  data1.push(['CELKEM', '', '', '', '', '', '', '', all.length + ' vad', totalPrice]);
 
   var ws1 = XLSX.utils.aoa_to_sheet(data1);
-  ws1['!cols'] = [{wch:5},{wch:12},{wch:16},{wch:24},{wch:44},{wch:24},{wch:34},{wch:18},{wch:8}];
-  ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:8}},{s:{r:1,c:0},e:{r:1,c:8}}];
+  ws1['!cols'] = [{wch:5},{wch:12},{wch:16},{wch:24},{wch:28},{wch:44},{wch:24},{wch:34},{wch:18},{wch:8}];
+  ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:9}},{s:{r:1,c:0},e:{r:1,c:9}}];
   ws1['!rows'] = [{hpt:24},{hpt:16},{hpt:8},{hpt:20}];
   ws1['!freeze'] = {xSplit:0, ySplit:4, topLeftCell:'A5'};
 
@@ -3698,6 +3699,7 @@ async function buildReportHtml(aud, obj, df, ts, sizePx, dispPx, maxPh){
           '<div style="background:'+cat.color+';padding:7px 14px;display:flex;justify-content:space-between;align-items:center">'+
             '<span style="color:white;font-weight:700;font-size:12px;letter-spacing:.3px">'+
               '#'+String(d.id).padStart(3,'0')+'&nbsp;&nbsp;'+esc(cat.label).toUpperCase()+
+              (d.title ? '&nbsp;&nbsp;·&nbsp;&nbsp;'+esc(d.title) : '')+
             '</span>'+
             '<span style="color:rgba(255,255,255,.85);font-size:10px">'+esc(f.name)+' · '+d.time+'</span>'+
           '</div>'+
