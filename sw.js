@@ -1,5 +1,5 @@
 // TechAudit Service Worker — offline cache
-const CACHE = 'techaudit-v2';
+const CACHE = 'techaudit-v3';
 const URLS = [
   './',
   './index.html'
@@ -23,7 +23,13 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  // Network-first strategy — pokud nedostupné, vrátíme cache
+  
+  // Cross-origin requesty NECHÁME projít — neměníme je. 
+  // Týká se to Firestore, Firebase Storage, Google Fonts, atd.
+  var url = new URL(e.request.url);
+  if (url.origin !== self.location.origin) return;
+  
+  // Pro same-origin: network-first s fallback na cache
   e.respondWith(
     fetch(e.request)
       .then(resp => {
