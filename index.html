@@ -917,13 +917,13 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
               📁 Vybrat soubor
               <input type="file" accept="image/*,.pdf,application/pdf"
                 onchange="onFile(this.files[0]);this.value=''"
-                style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+                style="display:none">
             </label>
             <label style="padding:14px 24px;background:#1e3a5f;color:#fff;border-radius:10px;font-family:Inter,sans-serif;font-size:15px;font-weight:600;min-height:52px;display:inline-flex;align-items:center;gap:8px;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">
               📷 Vyfotit
               <input type="file" accept="image/*" capture="environment"
                 onchange="onFile(this.files[0]);this.value=''"
-                style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
+                style="display:none">
             </label>
           </div>
         </div>
@@ -2021,6 +2021,54 @@ function planSrcKey(floorId, aid) {
 }
 
 // ── SAVE/LOAD PLANS ───────────────────────────────────────────
+// Pomocná funkce: data URL (base64) → Blob (menší pro upload)
+function dataURLtoBlob(dataURL) {
+  var parts = dataURL.split(',');
+  var mime = parts[0].match(/:(.*?);/)[1];
+  var bin = atob(parts[1]);
+  var arr = new Uint8Array(bin.length);
+  for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+// Nahraje jeden výkres-soubor (page nebo obrázek) do Firebase Storage
+async function uploadPlanToCloud(auditIdLocal, floorId, pageIdx, dataURL) {
+  try {
+    if (!firebase || !firebase.storage) return false;
+    var storage = firebase.storage();
+    var blob = dataURLtoBlob(dataURL);
+    var path = 'audits/' + auditIdLocal + '/floor_' + floorId + '/page_' + pageIdx + '.png';
+    var ref = storage.ref(path);
+    await ref.put(blob);
+    return true;
+  } catch(e) {
+    console.warn('Cloud upload failed:', e);
+    return false;
+  }
+}
+
+// Stáhne soubor z Firebase Storage a vrátí data URL
+async function downloadPlanFromCloud(auditIdLocal, floorId, pageIdx) {
+  try {
+    if (!firebase || !firebase.storage) return null;
+    var storage = firebase.storage();
+    var path = 'audits/' + auditIdLocal + '/floor_' + floorId + '/page_' + pageIdx + '.png';
+    var url = await storage.ref(path).getDownloadURL();
+    // Stáhni jako blob a převeď na data URL (kvůli zobrazení v <img>)
+    var resp = await fetch(url);
+    var blob = await resp.blob();
+    return await new Promise(function(res, rej){
+      var r = new FileReader();
+      r.onload = function(){ res(r.result); };
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  } catch(e) {
+    // Neexistuje nebo chyba — vrať null (není chybou, prostě tam není)
+    return null;
+  }
+}
+
 async function saveFloorPlan(f) {
   f.hasPlan = true; // označit že podlaží má výkres
   // Aktualizuj stav auditu v seznamu na "připravený"
@@ -2035,41 +2083,114 @@ async function saveFloorPlan(f) {
       await savePlanIDB(planKey(f.id, i), f.pdfPages[i]);
     }
     await savePlanIDB(planSrcKey(f.id), { type: 'pdf', count: f.pdfPages.length });
+    // Cloud upload — všechny stránky, aby je vidělo druhé zařízení
+    toast('☁ Nahrávám výkres do cloudu…');
+    var pages = f.pdfPages.length;
+    for (var i = 0; i < pages; i++) {
+      await uploadPlanToCloud(auditId, f.id, i, f.pdfPages[i]);
+    }
+    // Ulož metadata o výkresu do Firestore audit dokumentu
+    await savePlanMetaToFirestore(f.id, { type: 'pdf', count: pages });
+    toast('✓ Výkres nahrán do cloudu');
   } else if (f.planSrc) {
     // Single image
     await savePlanIDB(planSrcKey(f.id), { type: 'img', src: f.planSrc });
+    toast('☁ Nahrávám výkres do cloudu…');
+    await uploadPlanToCloud(auditId, f.id, 0, f.planSrc);
+    await savePlanMetaToFirestore(f.id, { type: 'img', count: 1 });
+    toast('✓ Výkres nahrán do cloudu');
+  }
+}
+
+// Uloží metadata o výkresu (typ, počet stránek) do Firestore audit dokumentu
+async function savePlanMetaToFirestore(floorId, meta) {
+  try {
+    if (!auditId || !db) return;
+    var path = 'planMeta.floor_' + floorId;
+    var update = {};
+    update[path] = meta;
+    await db.collection('audits').doc(auditId).set(update, { merge: true });
+  } catch(e) {
+    console.warn('Plan meta save failed:', e);
   }
 }
 
 async function loadFloorPlan(f) {
   var key = planSrcKey(f.id);
-  console.log('loadFloorPlan: hledám klíč', key, 'auditId=', auditId, 'floorId=', f.id);
   var meta = await loadPlanIDB(key);
-  console.log('loadFloorPlan: meta=', meta);
   if (!meta) {
     // Zkus starý formát klíče (bez auditId prefix — starší verze)
     var oldKey = 'floor' + f.id + '_src';
     meta = await loadPlanIDB(oldKey);
-    if (meta) console.log('Nalezeno pod starým klíčem:', oldKey);
   }
-  if (!meta) return false;
-  if (meta.type === 'pdf') {
-    f.pdfPages = [];
-    for (var i = 0; i < meta.count; i++) {
-      var page = await loadPlanIDB(planKey(f.id, i));
-      if (page) f.pdfPages.push(page);
-    }
-    if (f.pdfPages.length > 0) {
-      f.planSrc = f.pdfPages[0];
+  if (meta) {
+    // Máme lokální data
+    if (meta.type === 'pdf') {
+      f.pdfPages = [];
+      for (var i = 0; i < meta.count; i++) {
+        var page = await loadPlanIDB(planKey(f.id, i));
+        if (page) f.pdfPages.push(page);
+      }
+      if (f.pdfPages.length > 0) {
+        f.planSrc = f.pdfPages[0];
+        f.loaded = true;
+        return true;
+      }
+    } else if (meta.type === 'img' && meta.src) {
+      f.planSrc = meta.src;
       f.loaded = true;
       return true;
     }
-  } else if (meta.type === 'img' && meta.src) {
-    f.planSrc = meta.src;
-    f.loaded = true;
-    return true;
   }
-  return false;
+  // Lokálně nic — pokus o stažení z cloudu (Firebase Storage)
+  return await loadFloorPlanFromCloud(f);
+}
+
+// Stáhne výkres z Firebase Storage a uloží do IDB
+async function loadFloorPlanFromCloud(f) {
+  try {
+    if (!auditId || !db) return false;
+    // Načti metadata o výkresu z Firestore
+    var doc = await db.collection('audits').doc(auditId).get();
+    if (!doc.exists) return false;
+    var data = doc.data();
+    var meta = data.planMeta && data.planMeta['floor_' + f.id];
+    if (!meta) return false;
+    toast('☁ Stahuji výkres z cloudu…');
+    if (meta.type === 'pdf') {
+      f.pdfPages = [];
+      for (var i = 0; i < meta.count; i++) {
+        var page = await downloadPlanFromCloud(auditId, f.id, i);
+        if (page) {
+          f.pdfPages.push(page);
+          // Ulož i lokálně, aby se příště nemusel stahovat
+          await savePlanIDB(planKey(f.id, i), page);
+        }
+      }
+      if (f.pdfPages.length > 0) {
+        await savePlanIDB(planSrcKey(f.id), { type: 'pdf', count: f.pdfPages.length });
+        f.planSrc = f.pdfPages[0];
+        f.loaded = true;
+        f.hasPlan = true;
+        toast('✓ Výkres stažen');
+        return true;
+      }
+    } else if (meta.type === 'img') {
+      var src = await downloadPlanFromCloud(auditId, f.id, 0);
+      if (src) {
+        f.planSrc = src;
+        await savePlanIDB(planSrcKey(f.id), { type: 'img', src: src });
+        f.loaded = true;
+        f.hasPlan = true;
+        toast('✓ Výkres stažen');
+        return true;
+      }
+    }
+    return false;
+  } catch(e) {
+    console.warn('Cloud download failed:', e);
+    return false;
+  }
 }
 
 var auditsList = []; // seznam všech auditů [{id, name, objekt, datum, status, defectCount, updatedAt}]
