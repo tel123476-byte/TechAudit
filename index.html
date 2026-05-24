@@ -2047,45 +2047,17 @@ async function uploadPlanToCloud(auditIdLocal, floorId, pageIdx, dataURL) {
   }
 }
 
-// Stáhne soubor z Firebase Storage a vrátí data URL
+// Stáhne soubor z Firebase Storage a vrátí URL (přímo Firebase Storage URL)
+// <img src=...> dokáže URL načíst bez CORS problémů (na rozdíl od fetch/XHR)
 async function downloadPlanFromCloud(auditIdLocal, floorId, pageIdx) {
   try {
     if (!firebase || !firebase.storage) return null;
     var storage = firebase.storage();
     var path = 'audits/' + auditIdLocal + '/floor_' + floorId + '/page_' + pageIdx + '.png';
-    var ref = storage.ref(path);
-    // Použij getBytes() místo getDownloadURL+fetch — Firebase SDK řeší CORS interně
-    if (typeof ref.getBlob === 'function') {
-      // Firebase 9+ má getBlob (web SDK)
-      var blob = await ref.getBlob();
-      return await new Promise(function(res, rej){
-        var r = new FileReader();
-        r.onload = function(){ res(r.result); };
-        r.onerror = rej;
-        r.readAsDataURL(blob);
-      });
-    }
-    // Fallback: getDownloadURL + XMLHttpRequest (obchází Service Worker a fetch CORS preflight)
-    var url = await ref.getDownloadURL();
-    return await new Promise(function(resolve, reject) {
-      var xhr = new XMLHttpRequest();
-      xhr.responseType = 'blob';
-      xhr.onload = function() {
-        if (xhr.status === 200) {
-          var r = new FileReader();
-          r.onload = function(){ resolve(r.result); };
-          r.onerror = reject;
-          r.readAsDataURL(xhr.response);
-        } else {
-          reject(new Error('HTTP ' + xhr.status));
-        }
-      };
-      xhr.onerror = function() { reject(new Error('Network error')); };
-      xhr.open('GET', url);
-      xhr.send();
-    });
+    var url = await storage.ref(path).getDownloadURL();
+    return url;
   } catch(e) {
-    console.warn('Download chyba:', e.message);
+    // Neexistuje nebo chyba — vrať null
     return null;
   }
 }
