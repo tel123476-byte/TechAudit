@@ -1660,6 +1660,7 @@ async function saveToFirebase() {
             return {
               id: d.id,
               type: d.type,
+              title: d.title || '',
               desc: d.desc,
               discipline: d.discipline || '',
               location: d.location || '',
@@ -1715,6 +1716,7 @@ async function loadFromFirebase() {
             return {
               id: d.id,
               type: d.type,
+              title: d.title || '',
               desc: d.desc,
               discipline: d.discipline || '',
               location: d.location || '',
@@ -3342,6 +3344,7 @@ function exportJson(){
         defects: f.defects.map(function(d){
           return {
             id: d.id, type: catByKey(d.type).label,
+            title: d.title||'',
             discipline: d.discipline||'', desc: d.desc,
             location: d.location||'', solution: d.solution||'',
             price: d.price||0, time: d.time,
