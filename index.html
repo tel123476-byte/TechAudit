@@ -1639,26 +1639,7 @@ async function saveToFirebase() {
           id: f.id,
           name: f.name,
           hasPlan: f.hasPlan || f.loaded || false,
-          defects: f.defects.map(function(d) {
-            return {
-              id: d.id,
-              type: d.type,
-              title: d.title || '',
-              desc: d.desc,
-              discipline: d.discipline || '',
-              location: d.location || '',
-              solution: d.solution || '',
-              price: d.price || 0,
-              px: d.px,
-              py: d.py,
-              page: d.page,
-              floorId: d.floorId,
-              floorName: d.floorName,
-              time: d.time,
-              photoCount: d.photos.length
-              // fotky se ukládají zvlášť do localStorage
-            };
-          })
+          defects: f.defects.map(defectForFirebase)
         };
       }),
       cats: cats
@@ -1695,25 +1676,7 @@ async function loadFromFirebase() {
           loaded: false,
           zoom: 1,
           planSrc: '',
-          defects: f.defects.map(function(d) {
-            return {
-              id: d.id,
-              type: d.type,
-              title: d.title || '',
-              desc: d.desc,
-              discipline: d.discipline || '',
-              location: d.location || '',
-              solution: d.solution || '',
-              price: d.price || 0,
-              px: d.px,
-              py: d.py,
-              page: d.page,
-              floorId: d.floorId,
-              floorName: d.floorName,
-              time: d.time,
-              photos: localPhotos[d.id] || []
-            };
-          })
+          defects: f.defects.map(function(d) { return defectFromFirebase(d, localPhotos); })
         };
       });
       // Nastav counter ID
@@ -1803,6 +1766,48 @@ async function loadLocal() {
     }
     return true;
   } catch(e) { return false; }
+}
+
+// ── HELPERY pro mapování vad (sjednocují kód uložení / načtení) ────
+// Vada → objekt pro Firebase (bez fotek; ty jsou v localStorage)
+function defectForFirebase(d) {
+  return {
+    id: d.id,
+    type: d.type,
+    title: d.title || '',
+    desc: d.desc,
+    discipline: d.discipline || '',
+    location: d.location || '',
+    solution: d.solution || '',
+    price: d.price || 0,
+    px: d.px,
+    py: d.py,
+    page: d.page,
+    floorId: d.floorId,
+    floorName: d.floorName,
+    time: d.time,
+    photoCount: (d.photos && d.photos.length) || 0
+  };
+}
+// Vada z Firebase → lokální objekt (doplní fotky z localStorage)
+function defectFromFirebase(d, localPhotos) {
+  return {
+    id: d.id,
+    type: d.type,
+    title: d.title || '',
+    desc: d.desc,
+    discipline: d.discipline || '',
+    location: d.location || '',
+    solution: d.solution || '',
+    price: d.price || 0,
+    px: d.px,
+    py: d.py,
+    page: d.page,
+    floorId: d.floorId,
+    floorName: d.floorName,
+    time: d.time,
+    photos: (localPhotos && localPhotos[d.id]) || []
+  };
 }
 
 // ── AUTO-SYNC ─────────────────────────────────────────────────
