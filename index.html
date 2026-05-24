@@ -1810,9 +1810,11 @@ var syncTimer = null;
 function scheduleSync() {
   saveLocal(); // async, nevadí
   clearTimeout(syncTimer);
+  // 500ms — rychlá synchronizace; pokud uživatel klepe rychle za sebou,
+  // čekání se prodlouží automaticky (clearTimeout resetuje)
   syncTimer = setTimeout(function() {
     saveToFirebase();
-  }, 2000);
+  }, 500);
 }
 
 // ── SDÍLENÍ AUDITU ────────────────────────────────────────────
