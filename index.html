@@ -1568,12 +1568,9 @@ function installPWA() {
       var f = floor();
       if (f) {
         f.zoom = Math.max(0.3, Math.min(5, startZoom * scale));
-        var img = document.getElementById('planimg');
-        if (img) {
-          img.style.transform = 'scale(' + f.zoom + ')';
-          img.style.transformOrigin = 'top left';
-          document.getElementById('zv').textContent = Math.round(f.zoom*100)+'%';
-        }
+        // Sjednoceno s applyZ() — používáme width, ne transform.
+        // Dříve se aplikovaly oba zoomy najednou a značky se rozjely.
+        applyZ();
       }
       e.preventDefault();
     }
@@ -2624,6 +2621,10 @@ function doZoom(d){floor().zoom=Math.max(.2,Math.min(4,floor().zoom+d));applyZ()
 function zReset(){floor().zoom=1;applyZ();}
 function applyZ(){
   var img=document.getElementById('planimg');
+  if(!img)return;
+  // Vymaž případný transform z pinch gesta — používáme jen width
+  img.style.transform='';
+  img.style.transformOrigin='';
   if(img.naturalWidth)img.style.width=Math.round(img.naturalWidth*floor().zoom)+'px';
   document.getElementById('zv').textContent=Math.round(floor().zoom*100)+'%';
 }
