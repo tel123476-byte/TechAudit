@@ -1447,11 +1447,10 @@ async function ensureDefaultAdmin() {
         try { n.focus(); } catch(err){}
         return;
       }
-      // LABEL s vnořeným <input type=file> — klikni na input
-      if (n.tagName === 'LABEL') {
-        var inp = n.querySelector('input[type=file]');
-        if (inp) { try{ inp.click(); }catch(err){} return; }
-      }
+      // LABEL — nechej iPad zpracovat přirozeně (vnořený input se otevře sám)
+      // Pokud bychom volali input.click(), iOS Safari ze security důvodů
+      // zahodí vybraný soubor a onchange se nezavolá.
+      if (n.tagName === 'LABEL') return;
       var fn = n.getAttribute && n.getAttribute('onclick');
       if (fn) {
         ignoreClickUntil = Date.now() + 600;
