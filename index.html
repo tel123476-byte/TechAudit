@@ -2091,6 +2091,8 @@ async function saveFloorPlan(f) {
     }
     // Ulož metadata o výkresu do Firestore audit dokumentu
     await savePlanMetaToFirestore(f.id, { type: 'pdf', count: pages });
+    // Synchronizuj i hasPlan stav podlaží do Firestore (aby druhé zařízení vědělo, že podlaží má výkres)
+    if (typeof scheduleSync === 'function') scheduleSync();
     toast('✓ Výkres nahrán do cloudu');
   } else if (f.planSrc) {
     // Single image
@@ -2098,6 +2100,7 @@ async function saveFloorPlan(f) {
     toast('☁ Nahrávám výkres do cloudu…');
     await uploadPlanToCloud(auditId, f.id, 0, f.planSrc);
     await savePlanMetaToFirestore(f.id, { type: 'img', count: 1 });
+    if (typeof scheduleSync === 'function') scheduleSync();
     toast('✓ Výkres nahrán do cloudu');
   }
 }
@@ -2106,12 +2109,19 @@ async function saveFloorPlan(f) {
 async function savePlanMetaToFirestore(floorId, meta) {
   try {
     if (!auditId || !db) return;
-    var path = 'planMeta.floor_' + floorId;
+    // Firebase dot-notation pro nested field — používáme update() místo set()
     var update = {};
-    update[path] = meta;
-    await db.collection('audits').doc(auditId).set(update, { merge: true });
+    update['planMeta.floor_' + floorId] = meta;
+    await db.collection('audits').doc(auditId).update(update);
   } catch(e) {
-    console.warn('Plan meta save failed:', e);
+    // Pokud dokument neexistuje, .update() selže — pak ho vytvoříme
+    try {
+      var data = { planMeta: {} };
+      data.planMeta['floor_' + floorId] = meta;
+      await db.collection('audits').doc(auditId).set(data, { merge: true });
+    } catch(e2) {
+      console.warn('Plan meta save failed:', e2);
+    }
   }
 }
 
@@ -2154,7 +2164,8 @@ async function loadFloorPlanFromCloud(f) {
     var doc = await db.collection('audits').doc(auditId).get();
     if (!doc.exists) return false;
     var data = doc.data();
-    var meta = data.planMeta && data.planMeta['floor_' + f.id];
+    // Podporuj oba formáty: nested (planMeta.floor_X) i plochý klíč ("planMeta.floor_X")
+    var meta = (data.planMeta && data.planMeta['floor_' + f.id]) || data['planMeta.floor_' + f.id];
     if (!meta) return false;
     toast('☁ Stahuji výkres z cloudu…');
     if (meta.type === 'pdf') {
