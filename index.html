@@ -1186,6 +1186,10 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
     <div class="mhdr"><div class="mtit">Nová vada — <span id="mtyp"></span></div><button class="pcls" onclick="closeMod()">✕</button></div>
     <div class="mbdy">
       <div class="fg">
+        <div class="fl">Typ vady</div>
+        <div id="mtype-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:6px"></div>
+      </div>
+      <div class="fg">
         <div class="fl">Systém / Disciplína</div>
         <select class="fse" id="mdisc">
           <option value="">— Vyberte disciplínu —</option>
@@ -3047,8 +3051,25 @@ function openMod(px,py){
   document.getElementById('mprice').value='';
   document.getElementById('mphtxt').textContent='Přidat fotografie';
   document.getElementById('mtyp').textContent=catByKey(aType).label+' · '+floor().name;
+  renderModTypeBtns();
   document.getElementById('modal').classList.add('on');
   setTimeout(function(){document.getElementById('mdesc').focus();},150);
+}
+function renderModTypeBtns(){
+  var el=document.getElementById('mtype-btns');
+  if(!el)return;
+  el.innerHTML=cats.map(function(c){
+    var act=(c.key===aType);
+    var style='padding:10px 8px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;gap:6px;border:2px solid '+(act?c.color:c.border)+';background:'+(act?c.bg:'#fff')+';color:'+c.color+';min-height:42px';
+    return '<button type="button" onclick="setModType(\''+c.key+'\')" style="'+style+'">'+
+      '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+c.color+'"></span>'+esc(c.label)+'</button>';
+  }).join('');
+}
+function setModType(t){
+  aType=t;
+  document.getElementById('mtyp').textContent=catByKey(aType).label+' · '+(floor()?floor().name:'');
+  renderModTypeBtns();
+  renderTypeButtons();
 }
 function closeMod(){document.getElementById('modal').classList.remove('on');pending=null;mPhotos=[];}
 function mPh(files){
