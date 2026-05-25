@@ -889,7 +889,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
 </div>
 
 <!-- COSTS SCREEN — NÁKLADY AUDITŮ (admin only) -->
-<div id="costs-screen" class="hidden" style="background:#f5f7fa;min-height:100vh;padding:24px">
+<div id="costs-screen" class="hidden" style="background:#f5f7fa;min-height:100vh;padding:24px;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow-y:auto">
   <div style="max-width:1100px;margin:0 auto">
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
       <div style="font-size:24px">💼</div>
@@ -2810,11 +2810,16 @@ function closeTimerHistory(){
 // NÁKLADY - Přehled nákladů auditů (admin only)
 // ============================================================
 function openCostsScreen(){
-  if (!isAdmin()) { toast('Pouze admin může zobrazit náklady'); return; }
-  document.getElementById('costs-screen').classList.remove('hidden');
+  console.log('[COSTS] openCostsScreen called. currentUser=', currentUser);
+  if (!currentUser) { toast('⚠️ Nejste přihlášen'); return; }
+  if (!isAdmin()) { toast('⚠️ Pouze admin (role='+currentUser.role+')'); return; }
+  var screen = document.getElementById('costs-screen');
+  if (!screen) { toast('⚠️ Costs screen nenalezen v DOM'); return; }
+  screen.classList.remove('hidden');
   document.getElementById('costs-detail-view').style.display = 'none';
   document.getElementById('costs-list-view').style.display = 'block';
   renderCostsList();
+  toast('💼 Náklady otevřeny');
 }
 
 function closeCostsScreen(){
