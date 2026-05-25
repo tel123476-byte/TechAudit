@@ -2810,9 +2810,12 @@ function closeTimerHistory(){
 // NÁKLADY - Přehled nákladů auditů (admin only)
 // ============================================================
 function closeCostsScreen(){
+  // Nuclear option - úplně odstraň z DOM
   var screen = document.getElementById('costs-screen');
-  if (screen) {
-    screen.style.cssText = 'display:none !important';
+  if (screen && screen.parentNode) {
+    screen.parentNode.removeChild(screen);
+    toast('✅ Zavřeno - obnovte stránku pro nové otevření');
+    setTimeout(function(){ location.reload(); }, 500);
   }
 }
 
