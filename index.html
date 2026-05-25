@@ -547,10 +547,13 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   .am-table thead{display:none}
   .am-table tbody{display:block}
   .am-table tr{
-    display:flex;
-    flex-wrap:wrap;
+    display:grid;
+    grid-template-columns:1fr auto;
+    grid-template-areas:
+      "title actions"
+      "meta meta";
+    gap:4px 8px;
     align-items:center;
-    gap:6px 8px;
     border-bottom:1px solid var(--border);
     padding:8px 12px;
     background:#fff;
@@ -559,51 +562,49 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   .am-table td{display:block;border:none;padding:0;font-size:11px;background:none !important}
   .am-table td:before{display:none}
   /* 1=Objekt, 2=Auditor, 3=Datum, 4=Podlaží, 5=Vady, 6=Status, 7=Update, 8=Akce */
-  /* Objekt - název na prvním řádku, full width */
   .am-table td:nth-child(1){
-    flex:1 1 100%;
+    grid-area:title;
     font-weight:700;
     font-size:14px;
     color:var(--txt1);
-    order:1;
-    margin-bottom:2px;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
   .am-table td:nth-child(1) .am-tobj{font-weight:700;font-size:14px}
-  /* Skrýt: Auditor, Podlaží, Update */
+  /* Skrýt */
   .am-table td:nth-child(2),
   .am-table td:nth-child(4),
   .am-table td:nth-child(7){display:none}
-  /* Datum, Vady, Status, Akce - VŠECHNO na druhém řádku */
-  .am-table td:nth-child(3){
-    flex:0 0 auto;
+  /* Datum + Vady + Status na jednom řádku */
+  .am-table td:nth-child(3),
+  .am-table td:nth-child(5),
+  .am-table td:nth-child(6){
+    display:inline-block;
+    margin-right:8px;
+    font-size:11px;
     color:var(--txt2);
-    font-size:11px;
-    order:2;
   }
+  .am-table td:nth-child(3){grid-area:meta;justify-self:start}
   .am-table td:nth-child(5){
-    flex:0 0 auto;
-    order:3;
-    font-size:11px;
+    grid-area:meta;
+    justify-self:start;
+    margin-left:90px;
   }
   .am-table td:nth-child(5) .am-tdef{padding:2px 6px;font-size:10px}
   .am-table td:nth-child(6){
-    flex:0 0 auto;
-    order:4;
+    grid-area:meta;
+    justify-self:end;
   }
-  .am-table td:nth-child(6) .am-st-active,
-  .am-table td:nth-child(6) .am-st-done,
-  .am-table td:nth-child(6) .am-st-ready,
-  .am-table td:nth-child(6) .am-st-empty{font-size:10px;padding:2px 6px}
-  /* Akce - tlačítka */
+  .am-table td:nth-child(6) span{font-size:10px !important;padding:2px 6px !important;white-space:nowrap}
+  /* Akce - vedle názvu */
   .am-table td:nth-child(8){
-    flex:1 1 auto;
-    order:5;
-    display:flex;
-    justify-content:flex-end;
+    grid-area:actions;
   }
   .am-table td:nth-child(8) .am-tactions{display:flex;gap:3px}
   .am-table td:nth-child(8) .am-tbtn{
-    padding:4px 8px;
+    padding:4px 7px;
     font-size:10px;
     min-height:28px;
     min-width:0;
