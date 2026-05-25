@@ -2809,6 +2809,14 @@ function closeTimerHistory(){
 // ============================================================
 // NÁKLADY - Přehled nákladů auditů (admin only)
 // ============================================================
+function closeCostsScreen(){
+  var screen = document.getElementById('costs-screen');
+  if (screen) {
+    screen.classList.add('hidden');
+    screen.style.display = 'none';
+  }
+}
+
 function openCostsScreen(){
   console.log('[COSTS] openCostsScreen called. currentUser=', currentUser);
   if (!currentUser) { toast('⚠️ Nejste přihlášen'); return; }
@@ -2816,13 +2824,13 @@ function openCostsScreen(){
   var screen = document.getElementById('costs-screen');
   if (!screen) { toast('⚠️ Costs screen nenalezen v DOM'); return; }
   screen.classList.remove('hidden');
+  screen.style.display = 'block';
   document.getElementById('costs-detail-view').style.display = 'none';
   document.getElementById('costs-list-view').style.display = 'block';
   renderCostsList();
-  toast('💼 Náklady otevřeny');
 }
 
-function closeCostsScreen(){
+function closeCostsScreen_OLD_REMOVED(){
   document.getElementById('costs-screen').classList.add('hidden');
 }
 
