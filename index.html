@@ -325,7 +325,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
 #mlayer{position:absolute;inset:0;pointer-events:none}
 
 /* Markers */
-.mk{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:10;transition:transform .15s;pointer-events:all}
+.mk{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:10;transition:transform .15s;pointer-events:all;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.1);min-width:32px;min-height:32px;display:flex;align-items:center;justify-content:center}
 .mk:hover{transform:translate(-50%,-50%) scale(1.3);z-index:20}
 .mk.sel .mkpin{box-shadow:0 0 0 2px rgba(0,0,0,.3),0 0 0 4px rgba(0,0,0,.1)!important}
 .mkpin{
@@ -3032,7 +3032,17 @@ document.getElementById('view').addEventListener('wheel',function(e){
   var planTs = null;
   function handlePlanTap(e, clientX, clientY) {
     if(!floor() || !floor().loaded) return;
-    if(e.target.closest && e.target.closest('.mk')) return;
+    // Pokud byl klepnut marker - otevři panel
+    var mk = e.target.closest && e.target.closest('.mk');
+    if (mk) {
+      // Najdi defect podle pozice markeru
+      var mkNum = mk.querySelector('.mknum');
+      if (mkNum) {
+        var defId = parseInt(mkNum.textContent);
+        if (defId) openPanel(defId);
+      }
+      return;
+    }
     var img=document.getElementById('planimg');
     var r=img.getBoundingClientRect();
     openMod(((clientX-r.left)/r.width)*100,((clientY-r.top)/r.height)*100);
@@ -3179,7 +3189,13 @@ function renderMK(){
     el.className='mk'+(d.id===aId?' sel':'');
     el.style.left=d.px+'%';el.style.top=d.py+'%';
     el.innerHTML='<div class="mkpin" style="background:'+cat.color+';box-shadow:0 2px 6px '+cat.color+'80"><span class="mknum">'+d.id+'</span></div>';
-    el.onclick=function(e){e.stopPropagation();openPanel(d.id);};
+    (function(defId){
+      el.addEventListener('click', function(e){
+        e.stopPropagation();
+        e.preventDefault();
+        openPanel(defId);
+      });
+    })(d.id);
     layer.appendChild(el);
   });
 }
