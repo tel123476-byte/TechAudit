@@ -1249,10 +1249,17 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
         </div>
       </div>
       <div class="fg"><div class="fl">Fotografie (volitelně)</div>
-        <label class="padd"><input type="file" accept="image/*" multiple onchange="mPh(this.files);this.value=''">
-          <div style="font-size:18px;margin-bottom:3px;opacity:.6">📷</div>
-          <div style="font-size:10px;color:#8891a8" id="mphtxt">Přidat fotografie</div>
-        </label>
+        <div id="mphtxt-wrap" style="font-size:11px;color:#8891a8;text-align:center;margin-bottom:8px"><span id="mphtxt">Přidat fotografie</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+          <label style="padding:12px 18px;background:#0d9488;color:#fff;border-radius:8px;font-size:13px;font-weight:600;min-height:42px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.1)">
+            📁 Vybrat
+            <input type="file" accept="image/*" multiple onchange="mPh(this.files);this.value=''" style="display:none">
+          </label>
+          <label style="padding:12px 18px;background:#1e3a5f;color:#fff;border-radius:8px;font-size:13px;font-weight:600;min-height:42px;display:inline-flex;align-items:center;gap:6px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.1)">
+            📷 Vyfotit
+            <input type="file" accept="image/*" capture="environment" onchange="mPh(this.files);this.value=''" style="display:none">
+          </label>
+        </div>
       </div>
     </div>
     <div class="mftr">
