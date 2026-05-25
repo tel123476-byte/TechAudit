@@ -550,9 +550,9 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
     display:flex;
     flex-wrap:wrap;
     align-items:center;
-    gap:6px 10px;
+    gap:6px 8px;
     border-bottom:1px solid var(--border);
-    padding:10px 12px;
+    padding:8px 12px;
     background:#fff;
   }
   .am-table tr:last-child{border-bottom:none}
@@ -563,41 +563,51 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   .am-table td:nth-child(1){
     flex:1 1 100%;
     font-weight:700;
-    font-size:15px;
+    font-size:14px;
     color:var(--txt1);
     order:1;
+    margin-bottom:2px;
   }
-  .am-table td:nth-child(1) .am-tobj{font-weight:700;font-size:15px}
+  .am-table td:nth-child(1) .am-tobj{font-weight:700;font-size:14px}
   /* Skrýt: Auditor, Podlaží, Update */
   .am-table td:nth-child(2),
   .am-table td:nth-child(4),
   .am-table td:nth-child(7){display:none}
-  /* Datum */
+  /* Datum, Vady, Status, Akce - VŠECHNO na druhém řádku */
   .am-table td:nth-child(3){
     flex:0 0 auto;
     color:var(--txt2);
     font-size:11px;
     order:2;
   }
-  /* Vady */
   .am-table td:nth-child(5){
     flex:0 0 auto;
     order:3;
+    font-size:11px;
   }
-  /* Status */
+  .am-table td:nth-child(5) .am-tdef{padding:2px 6px;font-size:10px}
   .am-table td:nth-child(6){
     flex:0 0 auto;
     order:4;
   }
-  /* Akce vpravo - posune se na konec řádku */
+  .am-table td:nth-child(6) .am-st-active,
+  .am-table td:nth-child(6) .am-st-done,
+  .am-table td:nth-child(6) .am-st-ready,
+  .am-table td:nth-child(6) .am-st-empty{font-size:10px;padding:2px 6px}
+  /* Akce - tlačítka */
   .am-table td:nth-child(8){
     flex:1 1 auto;
     order:5;
     display:flex;
     justify-content:flex-end;
   }
-  .am-table td:nth-child(8) .am-tactions{display:flex;gap:4px}
-  .am-table td:nth-child(8) .am-tbtn{padding:6px 10px;font-size:11px;min-height:32px}
+  .am-table td:nth-child(8) .am-tactions{display:flex;gap:3px}
+  .am-table td:nth-child(8) .am-tbtn{
+    padding:4px 8px;
+    font-size:10px;
+    min-height:28px;
+    min-width:0;
+  }
   /* AM hero - kompaktnější */
   .am-hero{padding:14px 14px 12px}
   .am-hero-title{font-size:18px;line-height:1.2}
