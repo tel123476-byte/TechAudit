@@ -3065,6 +3065,7 @@ document.getElementById('view').addEventListener('wheel',function(e){
 // ── ADD DEFECT MODAL ───────────────────────────────────────────
 function openMod(px,py){
   pending={px:px,py:py,page:floor().curPage,floorId:floor().id,floorName:floor().name};
+  try { sessionStorage.setItem('techaudit_pending', JSON.stringify(pending)); } catch(e){}
   mPhotos=[];
   document.getElementById('mtitle').value='';
   document.getElementById('mdesc').value='';
@@ -3093,13 +3094,36 @@ function setModType(t){
   renderModTypeBtns();
   renderTypeButtons();
 }
-function closeMod(){document.getElementById('modal').classList.remove('on');pending=null;mPhotos=[];}
+function closeMod(){
+  document.getElementById('modal').classList.remove('on');
+  pending=null;mPhotos=[];
+  try { sessionStorage.removeItem('techaudit_pending'); } catch(e){}
+}
 function mPh(files){
-  readFiles(Array.from(files),function(imgs){mPhotos=mPhotos.concat(imgs);document.getElementById('mphtxt').textContent=mPhotos.length+' foto přidáno';});
+  // Pokud iOS reloadoval stránku po vyfocení - obnov pending
+  if (!pending) {
+    try {
+      var p = sessionStorage.getItem('techaudit_pending');
+      if (p) pending = JSON.parse(p);
+    } catch(e){}
+  }
+  readFiles(Array.from(files),function(imgs){
+    mPhotos=mPhotos.concat(imgs);
+    var t = document.getElementById('mphtxt');
+    if (t) t.textContent=mPhotos.length+' foto přidáno';
+  });
 }
 function confirmAdd(){
   var desc=document.getElementById('mdesc').value.trim();
   if(!desc){document.getElementById('mdesc').style.borderColor='#f74f4f';setTimeout(function(){document.getElementById('mdesc').style.borderColor='';},1400);return;}
+  // Pokud iOS reloadoval stránku - obnov pending
+  if (!pending) {
+    try {
+      var p = sessionStorage.getItem('techaudit_pending');
+      if (p) pending = JSON.parse(p);
+    } catch(e){}
+  }
+  if (!pending) { toast('Chyba: chybí pozice. Klepněte znovu na výkres.'); return; }
   var d={
     id:nid++,type:aType,desc:desc,
     title:document.getElementById('mtitle').value.trim(),
