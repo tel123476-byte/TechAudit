@@ -1015,6 +1015,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   <button class="btn btn-g" onclick="openListModal()">📋 Vady</button>
   <button id="btn-timer" class="btn" onclick="toggleTimer()" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-weight:700">▶ Zahájit</button>
   <span id="timer-display" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#065f46;padding:0 6px;display:none">00:00:00</span>
+  <button class="btn btn-g" onclick="openTimerHistory()" title="Historie kontrol">🕐 Historie</button>
   <button class="btn btn-b admin-only" onclick="openExportDlg()">📄 Export</button>
   <button class="btn btn-grn admin-only" onclick="doArchive()">📦 Archiv ZIP</button>
   <button id="btn-finish" class="btn admin-only" onclick="toggleAuditDone()" style="background:#f0f7ee;color:#2d6b26;border:1px solid #c8e0c4;font-weight:700">✓ Dokončit audit</button>
@@ -2713,6 +2714,79 @@ function formatDuration(seconds){
   var m = Math.floor((seconds%3600)/60);
   var s = seconds%60;
   return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+}
+
+function openTimerHistory(){
+  if (!auditId) { toast('⚠️ Otevřete nejdřív audit'); return; }
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) { toast('⚠️ Audit nenalezen'); return; }
+  var sessions = audit.sessions || [];
+  
+  // Souhrn podle auditora
+  var byAuditor = {};
+  var totalSec = 0;
+  sessions.forEach(function(s){
+    if (!s.duration && s.start && s.end) s.duration = Math.floor((s.end-s.start)/1000);
+    if (s.duration) {
+      byAuditor[s.auditor] = (byAuditor[s.auditor]||0) + s.duration;
+      totalSec += s.duration;
+    }
+  });
+  
+  var html = '<div style="padding:16px;max-width:600px">';
+  html += '<h2 style="margin:0 0 12px 0">🕐 Historie kontrol</h2>';
+  
+  if (sessions.length === 0){
+    html += '<p style="color:#666">Zatím žádné kontroly nebyly zaznamenány.</p>';
+  } else {
+    // Souhrn
+    html += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:16px">';
+    html += '<div style="font-weight:700;margin-bottom:8px">📊 Souhrn</div>';
+    Object.keys(byAuditor).forEach(function(name){
+      html += '<div style="display:flex;justify-content:space-between;padding:4px 0">';
+      html += '<span>'+name+'</span>';
+      html += '<span style="font-family:monospace;font-weight:700">'+formatDuration(byAuditor[name])+'</span>';
+      html += '</div>';
+    });
+    html += '<div style="border-top:1px solid #bae6fd;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700">';
+    html += '<span>CELKEM</span><span style="font-family:monospace">'+formatDuration(totalSec)+'</span></div>';
+    html += '</div>';
+    
+    // Detail jednotlivých sessions
+    html += '<div style="font-weight:700;margin-bottom:8px">📋 Jednotlivé kontroly</div>';
+    html += '<div style="max-height:300px;overflow-y:auto">';
+    var sortedSessions = sessions.slice().sort(function(a,b){return (b.start||0)-(a.start||0);});
+    sortedSessions.forEach(function(s){
+      var startDate = s.start ? new Date(s.start) : null;
+      var dateStr = startDate ? startDate.toLocaleDateString('cs-CZ')+' '+startDate.toLocaleTimeString('cs-CZ').slice(0,5) : '?';
+      var durStr = s.duration ? formatDuration(s.duration) : (s.end ? '?' : '⏱ běží...');
+      var bgColor = s.end ? '#f9fafb' : '#fef9c3';
+      html += '<div style="background:'+bgColor+';border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px">';
+      html += '<div><div style="font-weight:600">'+s.auditor+'</div><div style="color:#666;font-size:11px">'+dateStr+'</div></div>';
+      html += '<div style="font-family:monospace;font-weight:700;font-size:14px">'+durStr+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  
+  html += '<div style="margin-top:16px;text-align:right">';
+  html += '<button class="btn" onclick="closeTimerHistory()" style="background:#3b82f6;color:white;border:0;padding:8px 16px;font-weight:700">Zavřít</button>';
+  html += '</div></div>';
+  
+  // Modal
+  var existing = document.getElementById('timer-history-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'timer-history-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:white;border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto">'+html+'</div>';
+  modal.onclick = function(e){ if(e.target===modal) closeTimerHistory(); };
+  document.body.appendChild(modal);
+}
+
+function closeTimerHistory(){
+  var m = document.getElementById('timer-history-modal');
+  if (m) m.remove();
 }
 
 async function saveTimerToFirebase(audit){
