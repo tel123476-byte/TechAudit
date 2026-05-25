@@ -754,6 +754,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
 .am-tbtn-assign{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
 .am-tbtn-assign:hover{background:#dbeafe}
 .assign-row:hover{background:#f7f9fc}
+#assign-modal{display:flex}
 #assign-modal.hidden{display:none}
 .am-tbtn-del{background:#fff5f5;color:#dc2626;border:1px solid #fecaca}
 .am-tbtn-del:hover{background:#fee2e2}
@@ -850,7 +851,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
 </div>
 
 <!-- PŘIŘAZENÍ AUDITORA -->
-<div id="assign-modal" class="hidden" onclick="if(event.target===this)closeAssignModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;-webkit-tap-highlight-color:transparent">
+<div id="assign-modal" class="hidden" onclick="if(event.target===this)closeAssignModal()" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;padding:20px;-webkit-tap-highlight-color:transparent">
   <div onclick="event.stopPropagation()" style="background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;position:relative">
     <div style="padding:18px 22px;border-bottom:1px solid #e8edf2;display:flex;justify-content:space-between;align-items:center">
       <div style="font-weight:700;font-size:16px">👤 Přiřadit auditora</div>
