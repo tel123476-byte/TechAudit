@@ -2810,12 +2810,10 @@ function closeTimerHistory(){
 // NÁKLADY - Přehled nákladů auditů (admin only)
 // ============================================================
 function closeCostsScreen(){
-  // Nuclear option - úplně odstraň z DOM
+  // Úplně odstraň z DOM bez reloadu
   var screen = document.getElementById('costs-screen');
   if (screen && screen.parentNode) {
     screen.parentNode.removeChild(screen);
-    toast('✅ Zavřeno - obnovte stránku pro nové otevření');
-    setTimeout(function(){ location.reload(); }, 500);
   }
 }
 
@@ -2823,9 +2821,27 @@ function openCostsScreen(){
   console.log('[COSTS] openCostsScreen called. currentUser=', currentUser);
   if (!currentUser) { toast('⚠️ Nejste přihlášen'); return; }
   if (!isAdmin()) { toast('⚠️ Pouze admin (role='+currentUser.role+')'); return; }
+  
+  // Pokud byl screen odstraněn, znovu vytvoř
   var screen = document.getElementById('costs-screen');
-  if (!screen) { toast('⚠️ Costs screen nenalezen v DOM'); return; }
-  screen.classList.remove('hidden');
+  if (!screen) {
+    screen = document.createElement('div');
+    screen.id = 'costs-screen';
+    screen.innerHTML = '<div style="max-width:1100px;margin:0 auto">'+
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+
+        '<div style="font-size:24px">💼</div>'+
+        '<div style="flex:1">'+
+          '<div style="font-size:20px;font-weight:700;color:#0f172a">Náklady auditů</div>'+
+          '<div style="font-size:12px;color:#64748b">Přehled hodin auditorů × sazba + doprava + další položky</div>'+
+        '</div>'+
+        '<button class="btn btn-g" onclick="closeCostsScreen()" style="font-size:11px">← Zpět</button>'+
+      '</div>'+
+      '<div id="costs-list-view"></div>'+
+      '<div id="costs-detail-view" style="display:none"></div>'+
+    '</div>';
+    document.body.appendChild(screen);
+  }
+  
   screen.style.cssText = 'background:#f5f7fa;min-height:100vh;padding:24px;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow-y:auto;display:block';
   document.getElementById('costs-detail-view').style.display = 'none';
   document.getElementById('costs-list-view').style.display = 'block';
