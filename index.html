@@ -468,6 +468,26 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
 
 /* ── DOTYKOVÉ UI — TABLET / MOBIL ────────────────────────────── */
 @media (max-width: 768px) {
+  /* am-header (úvodní stránka po přihlášení) - horizontalní scroll */
+  .am-header{
+    padding:0 10px;
+    height:52px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    gap:8px;
+    justify-content:flex-start;
+  }
+  .am-header::-webkit-scrollbar{display:none}
+  .am-header > *{flex-shrink:0}
+  .am-header-left,
+  .am-header-right{gap:8px;flex-shrink:0}
+  .am-logo-text{font-size:13px;line-height:1.1}
+  .am-logo-sub{font-size:8px;display:none}
+  .am-sync{font-size:10px}
+  .am-sync span{font-size:10px}
+  .am-header .btn{padding:6px 10px;font-size:10px;min-height:32px;white-space:nowrap}
   /* Topbar - horizontalní scroll */
   #topbar{
     height:52px;padding:0 10px;gap:6px;
