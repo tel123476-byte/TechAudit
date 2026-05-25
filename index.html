@@ -2812,8 +2812,7 @@ function closeTimerHistory(){
 function closeCostsScreen(){
   var screen = document.getElementById('costs-screen');
   if (screen) {
-    screen.classList.add('hidden');
-    screen.style.display = 'none';
+    screen.style.cssText = 'display:none !important';
   }
 }
 
@@ -2824,7 +2823,7 @@ function openCostsScreen(){
   var screen = document.getElementById('costs-screen');
   if (!screen) { toast('⚠️ Costs screen nenalezen v DOM'); return; }
   screen.classList.remove('hidden');
-  screen.style.display = 'block';
+  screen.style.cssText = 'background:#f5f7fa;min-height:100vh;padding:24px;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow-y:auto;display:block';
   document.getElementById('costs-detail-view').style.display = 'none';
   document.getElementById('costs-list-view').style.display = 'block';
   renderCostsList();
