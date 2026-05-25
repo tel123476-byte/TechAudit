@@ -888,6 +888,22 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   </div>
 </div>
 
+<!-- COSTS SCREEN — NÁKLADY AUDITŮ (admin only) -->
+<div id="costs-screen" class="hidden" style="background:#f5f7fa;min-height:100vh;padding:24px">
+  <div style="max-width:1100px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      <div style="font-size:24px">💼</div>
+      <div style="flex:1">
+        <div style="font-size:20px;font-weight:700;color:#0f172a">Náklady auditů</div>
+        <div style="font-size:12px;color:#64748b">Přehled hodin auditorů × sazba + doprava + další položky</div>
+      </div>
+      <button class="btn btn-g" onclick="closeCostsScreen()" style="font-size:11px">← Zpět</button>
+    </div>
+    <div id="costs-list-view"></div>
+    <div id="costs-detail-view" style="display:none"></div>
+  </div>
+</div>
+
 <!-- SPRÁVCE AUDITŮ — RILANCIO -->
 <div id="audit-manager">
 
@@ -2484,6 +2500,7 @@ async function loadAuditsList() {
         auditor: d.auditor || '',
         assignedAuditors: d.assignedAuditors || (d.auditor ? [d.auditor] : []),
         sessions: d.sessions || [],
+        costs: d.costs || {car:{km:0,ratePerKm:12}, items:[]},
         transportCosts: d.transportCosts || [],
         datum: d.datum || '',
         status: d.status || 'active',
@@ -2787,6 +2804,251 @@ function openTimerHistory(){
 function closeTimerHistory(){
   var m = document.getElementById('timer-history-modal');
   if (m) m.remove();
+}
+
+// ============================================================
+// NÁKLADY - Přehled nákladů auditů (admin only)
+// ============================================================
+function openCostsScreen(){
+  if (!isAdmin()) { toast('Pouze admin může zobrazit náklady'); return; }
+  document.getElementById('costs-screen').classList.remove('hidden');
+  document.getElementById('costs-detail-view').style.display = 'none';
+  document.getElementById('costs-list-view').style.display = 'block';
+  renderCostsList();
+}
+
+function closeCostsScreen(){
+  document.getElementById('costs-screen').classList.add('hidden');
+}
+
+function renderCostsList(){
+  var list = document.getElementById('costs-list-view');
+  if (!auditsList || auditsList.length === 0){
+    list.innerHTML = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:30px;text-align:center;color:#64748b">Žádné audity nejsou k dispozici.</div>';
+    return;
+  }
+  
+  var html = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">';
+  html += '<th style="padding:12px 16px;text-align:left;font-weight:600;color:#475569">Audit</th>';
+  html += '<th style="padding:12px 16px;text-align:left;font-weight:600;color:#475569">Datum</th>';
+  html += '<th style="padding:12px 16px;text-align:right;font-weight:600;color:#475569">Hodiny</th>';
+  html += '<th style="padding:12px 16px;text-align:right;font-weight:600;color:#475569">Celkem Kč</th>';
+  html += '<th style="padding:12px 16px;text-align:center;font-weight:600;color:#475569"></th>';
+  html += '</tr></thead><tbody>';
+  
+  auditsList.forEach(function(audit){
+    var totals = calculateAuditCosts(audit);
+    html += '<tr style="border-bottom:1px solid #f1f5f9">';
+    html += '<td style="padding:12px 16px;font-weight:600">'+esc(audit.objekt||'(bez názvu)')+'</td>';
+    html += '<td style="padding:12px 16px;color:#64748b">'+esc(audit.datum||audit.updatedAt||'—')+'</td>';
+    html += '<td style="padding:12px 16px;text-align:right;font-family:monospace">'+formatDuration(totals.totalSeconds)+'</td>';
+    html += '<td style="padding:12px 16px;text-align:right;font-weight:700;color:#059669">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč</td>';
+    html += '<td style="padding:12px 16px;text-align:center"><button class="btn btn-b" onclick="openCostsDetail(\''+audit.id+'\')" style="font-size:11px;padding:5px 12px">Detail</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  list.innerHTML = html;
+}
+
+function calculateAuditCosts(audit){
+  var sessions = audit.sessions || [];
+  var costs = audit.costs || {};
+  var car = costs.car || {km:0, ratePerKm:12};
+  var items = costs.items || [];
+  
+  // Hodiny podle auditora × sazba
+  var byAuditor = {};
+  var totalSeconds = 0;
+  sessions.forEach(function(s){
+    if (!s.duration && s.start && s.end) s.duration = Math.floor((s.end-s.start)/1000);
+    if (s.duration && s.end) {
+      byAuditor[s.auditor] = (byAuditor[s.auditor]||0) + s.duration;
+      totalSeconds += s.duration;
+    }
+  });
+  
+  // Najdi sazby uživatelů
+  var laborTotal = 0;
+  var laborDetails = [];
+  Object.keys(byAuditor).forEach(function(name){
+    var seconds = byAuditor[name];
+    var hours = seconds / 3600;
+    var rate = getUserRate(name);
+    var amount = Math.round(hours * rate);
+    laborTotal += amount;
+    laborDetails.push({name:name, seconds:seconds, hours:hours, rate:rate, amount:amount});
+  });
+  
+  var carTotal = (car.km || 0) * (car.ratePerKm || 0);
+  var itemsTotal = items.reduce(function(s,i){return s + (Number(i.amount)||0);}, 0);
+  
+  return {
+    totalSeconds: totalSeconds,
+    laborDetails: laborDetails,
+    laborTotal: laborTotal,
+    car: car,
+    carTotal: carTotal,
+    items: items,
+    itemsTotal: itemsTotal,
+    grandTotal: laborTotal + carTotal + itemsTotal
+  };
+}
+
+function getUserRate(name){
+  // Cache uživatelů v globální proměnné
+  if (!window._userRatesCache) window._userRatesCache = {};
+  if (window._userRatesCache[name] != null) return window._userRatesCache[name];
+  return 0; // bude doplněno asynchronně
+}
+
+async function loadUserRates(){
+  try {
+    var snap = await db.collection('users').get();
+    window._userRatesCache = {};
+    snap.forEach(function(doc){
+      var u = doc.data();
+      window._userRatesCache[u.name] = Number(u.hourlyRate)||0;
+    });
+  } catch(e){ console.warn('Load rates error:', e.message); }
+}
+
+async function openCostsDetail(auditId){
+  await loadUserRates(); // Načti aktuální sazby
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) { toast('Audit nenalezen'); return; }
+  
+  document.getElementById('costs-list-view').style.display = 'none';
+  var view = document.getElementById('costs-detail-view');
+  view.style.display = 'block';
+  
+  renderCostsDetail(audit);
+}
+
+function renderCostsDetail(audit){
+  var view = document.getElementById('costs-detail-view');
+  var totals = calculateAuditCosts(audit);
+  var costs = audit.costs || {};
+  var car = costs.car || {km:0, ratePerKm:12};
+  var items = costs.items || [];
+  
+  var html = '<button class="btn btn-g" onclick="renderCostsList();document.getElementById(\'costs-detail-view\').style.display=\'none\';document.getElementById(\'costs-list-view\').style.display=\'block\'" style="font-size:11px;margin-bottom:16px">← Seznam auditů</button>';
+  
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px">'+esc(audit.objekt||'(bez názvu)')+'</div>';
+  html += '<div style="font-size:13px;color:#64748b">'+(audit.datum?'📅 '+esc(audit.datum):'')+'</div>';
+  html += '</div>';
+  
+  // PRÁCE
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:8px">👷 Práce auditorů</div>';
+  if (totals.laborDetails.length === 0){
+    html += '<div style="color:#94a3b8;font-size:13px">Žádné ukončené kontroly</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Auditor</th><th style="padding:8px 10px;text-align:right">Čas</th><th style="padding:8px 10px;text-align:right">Hodin</th><th style="padding:8px 10px;text-align:right">Sazba</th><th style="padding:8px 10px;text-align:right">Celkem</th></tr></thead><tbody>';
+    totals.laborDetails.forEach(function(d){
+      html += '<tr style="border-top:1px solid #f1f5f9">';
+      html += '<td style="padding:8px 10px;font-weight:600">'+esc(d.name)+'</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">'+formatDuration(d.seconds)+'</td>';
+      html += '<td style="padding:8px 10px;text-align:right">'+d.hours.toFixed(2)+' h</td>';
+      html += '<td style="padding:8px 10px;text-align:right">'+d.rate+' Kč/h</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-weight:700">'+d.amount.toLocaleString('cs-CZ')+' Kč</td>';
+      html += '</tr>';
+    });
+    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td colspan="4" style="padding:10px;text-align:right;font-weight:700">Mzdy celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#059669">'+totals.laborTotal.toLocaleString('cs-CZ')+' Kč</td></tr>';
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  
+  // AUTO
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px">🚗 Doprava autem</div>';
+  html += '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">';
+  html += '<label style="font-size:13px">Km: <input type="number" id="cost-car-km" value="'+(car.km||0)+'" min="0" style="width:100px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
+  html += '<label style="font-size:13px">Sazba Kč/km: <input type="number" id="cost-car-rate" value="'+(car.ratePerKm||12)+'" min="0" step="0.5" style="width:80px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
+  html += '<div style="margin-left:auto;font-weight:700;font-size:15px;color:#059669">'+totals.carTotal.toLocaleString('cs-CZ')+' Kč</div>';
+  html += '</div></div>';
+  
+  // VOLNÉ POLOŽKY
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:8px">📋 Další položky <button onclick="addCostItem(\''+audit.id+'\')" style="background:#3b82f6;color:#fff;border:0;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;margin-left:auto">+ Přidat</button></div>';
+  
+  if (items.length === 0){
+    html += '<div style="color:#94a3b8;font-size:13px">Žádné položky. Přidejte parkovné, MHD, materiál atd.</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Název</th><th style="padding:8px 10px;text-align:right">Částka</th><th style="padding:8px 10px;text-align:center;width:60px"></th></tr></thead><tbody>';
+    items.forEach(function(it, idx){
+      html += '<tr style="border-top:1px solid #f1f5f9">';
+      html += '<td style="padding:6px 10px"><input type="text" value="'+esc(it.name||'')+'" placeholder="např. Parkovné" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px" onchange="updateCostItem(\''+audit.id+'\','+idx+',\'name\',this.value)"></td>';
+      html += '<td style="padding:6px 10px;text-align:right"><input type="number" value="'+(it.amount||0)+'" min="0" style="width:120px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;text-align:right" onchange="updateCostItem(\''+audit.id+'\','+idx+',\'amount\',this.value)"> Kč</td>';
+      html += '<td style="padding:6px 10px;text-align:center"><button onclick="deleteCostItem(\''+audit.id+'\','+idx+')" style="background:#fee2e2;color:#991b1b;border:0;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:11px">×</button></td>';
+      html += '</tr>';
+    });
+    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td style="padding:10px;text-align:right;font-weight:700">Položky celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#059669">'+totals.itemsTotal.toLocaleString('cs-CZ')+' Kč</td><td></td></tr>';
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  
+  // CELKEM
+  html += '<div style="background:linear-gradient(135deg,#059669,#047857);color:#fff;border-radius:10px;padding:20px;display:flex;justify-content:space-between;align-items:center">';
+  html += '<div style="font-size:16px;font-weight:600">💰 CELKOVÉ NÁKLADY</div>';
+  html += '<div style="font-size:28px;font-weight:800;font-family:monospace">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč</div>';
+  html += '</div>';
+  
+  view.innerHTML = html;
+}
+
+async function updateCarCost(auditId){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) return;
+  var km = Number(document.getElementById('cost-car-km').value)||0;
+  var rate = Number(document.getElementById('cost-car-rate').value)||0;
+  audit.costs = audit.costs || {};
+  audit.costs.car = {km:km, ratePerKm:rate};
+  await saveCosts(audit);
+  renderCostsDetail(audit);
+}
+
+async function addCostItem(auditId){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) return;
+  audit.costs = audit.costs || {};
+  audit.costs.items = audit.costs.items || [];
+  audit.costs.items.push({name:'', amount:0});
+  await saveCosts(audit);
+  renderCostsDetail(audit);
+}
+
+async function updateCostItem(auditId, idx, field, value){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit || !audit.costs || !audit.costs.items) return;
+  audit.costs.items[idx][field] = field === 'amount' ? (Number(value)||0) : value;
+  await saveCosts(audit);
+  if (field === 'amount') renderCostsDetail(audit);
+}
+
+async function deleteCostItem(auditId, idx){
+  if (!confirm('Smazat tuto položku?')) return;
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit || !audit.costs || !audit.costs.items) return;
+  audit.costs.items.splice(idx, 1);
+  await saveCosts(audit);
+  renderCostsDetail(audit);
+}
+
+async function saveCosts(audit){
+  try {
+    await db.collection('audits').doc(audit.id).update({
+      costs: audit.costs,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { 
+    console.warn('Costs save error:', e.message); 
+    toast('⚠️ Chyba při ukládání');
+  }
 }
 
 async function saveTimerToFirebase(audit){
