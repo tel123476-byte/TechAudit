@@ -2859,7 +2859,7 @@ function renderCostsList(){
     html += '<td style="padding:12px 16px;font-weight:600">'+esc(audit.objekt||'(bez názvu)')+'</td>';
     html += '<td style="padding:12px 16px;color:#64748b">'+esc(audit.datum||audit.updatedAt||'—')+'</td>';
     html += '<td style="padding:12px 16px;text-align:right;font-family:monospace">'+formatDuration(totals.totalSeconds)+'</td>';
-    html += '<td style="padding:12px 16px;text-align:right;font-weight:700;color:#059669">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč</td>';
+    html += '<td style="padding:12px 16px;text-align:right;font-weight:700;color:#2563eb">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td>';
     html += '<td style="padding:12px 16px;text-align:center"><button class="btn btn-b" onclick="openCostsDetail(\''+audit.id+'\')" style="font-size:11px;padding:5px 12px">Detail</button></td>';
     html += '</tr>';
   });
@@ -2972,7 +2972,7 @@ function renderCostsDetail(audit){
       html += '<td style="padding:8px 10px;text-align:right;font-weight:700">'+d.amount.toLocaleString('cs-CZ')+' Kč</td>';
       html += '</tr>';
     });
-    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td colspan="4" style="padding:10px;text-align:right;font-weight:700">Mzdy celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#059669">'+totals.laborTotal.toLocaleString('cs-CZ')+' Kč</td></tr>';
+    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td colspan="4" style="padding:10px;text-align:right;font-weight:700">Mzdy celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#2563eb">'+totals.laborTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td></tr>';
     html += '</tbody></table>';
   }
   html += '</div>';
@@ -2983,7 +2983,7 @@ function renderCostsDetail(audit){
   html += '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">';
   html += '<label style="font-size:13px">Km: <input type="number" id="cost-car-km" value="'+(car.km||0)+'" min="0" style="width:100px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
   html += '<label style="font-size:13px">Sazba Kč/km: <input type="number" id="cost-car-rate" value="'+(car.ratePerKm||12)+'" min="0" step="0.5" style="width:80px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
-  html += '<div style="margin-left:auto;font-weight:700;font-size:15px;color:#059669">'+totals.carTotal.toLocaleString('cs-CZ')+' Kč</div>';
+  html += '<div style="margin-left:auto;font-weight:700;font-size:15px;color:#2563eb">'+totals.carTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></div>';
   html += '</div></div>';
   
   // VOLNÉ POLOŽKY
@@ -3002,15 +3002,15 @@ function renderCostsDetail(audit){
       html += '<td style="padding:6px 10px;text-align:center"><button onclick="deleteCostItem(\''+audit.id+'\','+idx+')" style="background:#fee2e2;color:#991b1b;border:0;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:11px">×</button></td>';
       html += '</tr>';
     });
-    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td style="padding:10px;text-align:right;font-weight:700">Položky celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#059669">'+totals.itemsTotal.toLocaleString('cs-CZ')+' Kč</td><td></td></tr>';
+    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td style="padding:10px;text-align:right;font-weight:700">Položky celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#2563eb">'+totals.itemsTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td><td></td></tr>';
     html += '</tbody></table>';
   }
   html += '</div>';
   
   // CELKEM
-  html += '<div style="background:linear-gradient(135deg,#059669,#047857);color:#fff;border-radius:10px;padding:20px;display:flex;justify-content:space-between;align-items:center">';
+  html += '<div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-radius:10px;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">';
   html += '<div style="font-size:16px;font-weight:600">💰 CELKOVÉ NÁKLADY</div>';
-  html += '<div style="font-size:28px;font-weight:800;font-family:monospace">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč</div>';
+  html += '<div style="text-align:right"><div style="font-size:28px;font-weight:800;font-family:monospace">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč</div><div style="font-size:11px;opacity:0.85;margin-top:2px">bez DPH</div></div>';
   html += '</div>';
   
   view.innerHTML = html;
