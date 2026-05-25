@@ -751,6 +751,10 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
 .am-tbtn-open:hover{background:#3d7534}
 .am-tbtn-mark{background:#f0f4f8;color:#6b7f92;border:1px solid #dce4ec}
 .am-tbtn-mark:hover{background:#e4eaf0;color:#1a2630}
+.am-tbtn-assign{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.am-tbtn-assign:hover{background:#dbeafe}
+.assign-row:hover{background:#f7f9fc}
+#assign-modal.hidden{display:none}
 .am-tbtn-del{background:#fff5f5;color:#dc2626;border:1px solid #fecaca}
 .am-tbtn-del:hover{background:#fee2e2}
 .am-tdef{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700}
@@ -845,6 +849,24 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   </div>
 </div>
 
+<!-- PŘIŘAZENÍ AUDITORA -->
+<div id="assign-modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:600;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:12px;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="padding:18px 22px;border-bottom:1px solid #e8edf2;display:flex;justify-content:space-between;align-items:center">
+      <div style="font-weight:700;font-size:16px">👤 Přiřadit auditora</div>
+      <button onclick="closeAssignModal()" style="border:none;background:#f0f4f8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px">×</button>
+    </div>
+    <div style="padding:18px 22px;font-size:12px;color:#6b7f92;border-bottom:1px solid #e8edf2">
+      Audit: <span id="assign-audit-name" style="font-weight:600;color:#2a3a4a"></span>
+    </div>
+    <div id="assign-users-list" style="overflow-y:auto;flex:1;padding:8px 0"></div>
+    <div style="padding:14px 22px;border-top:1px solid #e8edf2;display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeAssignModal()" class="btn btn-g" style="font-size:12px">Zrušit</button>
+      <button onclick="saveAssignment()" class="btn btn-p" style="font-size:12px;background:#22c55e;color:#fff">Uložit</button>
+    </div>
+  </div>
+</div>
+
 <!-- SPRÁVCE AUDITŮ — RILANCIO -->
 <div id="audit-manager">
 
@@ -912,7 +934,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   <div class="am-body">
     <div class="am-toolbar">
       <div class="am-stit">Seznam auditů</div>
-      <button class="am-new-btn" onclick="newAudit()">+ Nový audit</button>
+      <button class="am-new-btn admin-only" onclick="newAudit()">+ Nový audit</button>
     </div>
     <div id="am-table-wrap">
       <table class="am-table" id="am-table">
@@ -969,8 +991,8 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
     <span id="sync-txt">Načítám...</span>
   </div>
   <button class="btn btn-g" onclick="openListModal()">📋 Vady</button>
-  <button class="btn btn-b" onclick="openExportDlg()">📄 Export</button>
-  <button class="btn btn-grn" onclick="doArchive()">📦 Archiv ZIP</button>
+  <button class="btn btn-b admin-only" onclick="openExportDlg()">📄 Export</button>
+  <button class="btn btn-grn admin-only" onclick="doArchive()">📦 Archiv ZIP</button>
   <button id="btn-finish" class="btn admin-only" onclick="toggleAuditDone()" style="background:#f0f7ee;color:#2d6b26;border:1px solid #c8e0c4;font-weight:700">✓ Dokončit audit</button>
 </div>
 
@@ -1008,7 +1030,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
         <button class="zb" onclick="doZoom(.15)">+</button>
         <button class="zb" onclick="zReset()" style="font-size:9px">↺</button>
       </div>
-      <label class="btn btn-g" style="cursor:pointer" id="uploadBtn">
+      <label class="btn btn-g admin-only" style="cursor:pointer" id="uploadBtn">
         📐 Nahrát výkres
         <input type="file" accept="image/*,.pdf,application/pdf" style="display:none" onchange="onFile(this.files[0]);this.value=''">
       </label>
@@ -1016,7 +1038,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
     <div id="ptabs"></div>
     <div id="view">
       <div id="upzone">
-        <div id="upbox">
+        <div id="upbox" class="admin-only">
           <div class="uico">📐</div>
           <div class="utit" id="upzone-title">Nahrát výkres podlaží</div>
           <div class="usub" id="upzone-sub">PDF nebo obrázek (JPG, PNG)</div>
@@ -1037,6 +1059,11 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
                 style="display:none">
             </label>
           </div>
+        </div>
+        <div id="upbox-auditor" class="auditor-only" style="display:none;text-align:center;padding:40px 20px;color:#6b7f92">
+          <div style="font-size:48px;margin-bottom:16px">⏳</div>
+          <div style="font-size:16px;font-weight:600;margin-bottom:8px;color:#2a3a4a">Čekání na výkres</div>
+          <div style="font-size:13px">Admin pro toto podlaží ještě nenahrál výkres.</div>
         </div>
       </div>
       <div id="pload">
@@ -1447,6 +1474,9 @@ function applyRoleUI() {
   // Admin tlačítka
   var adminBtns = document.querySelectorAll('.admin-only');
   adminBtns.forEach(function(b){ b.style.display = isAdmin() ? '' : 'none'; });
+  // Auditor-only - vidí jen auditor (ne admin)
+  var auditorBtns = document.querySelectorAll('.auditor-only');
+  auditorBtns.forEach(function(b){ b.style.display = (currentUser && currentUser.role === 'auditor') ? '' : 'none'; });
   // Čtenář — skryj editaci
   var editBtns = document.querySelectorAll('.edit-only');
   editBtns.forEach(function(b){ b.style.display = isReader() ? 'none' : ''; });
@@ -1510,6 +1540,67 @@ async function deleteUser(id, name) {
     loadUsers();
     toast('Uživatel smazán');
   } catch(e) { toast('Chyba: '+e.message); }
+}
+
+// === PŘIŘAZENÍ AUDITORA K AUDITU ===
+var assignTargetAuditId = null;
+var assignSelectedName = null;
+
+async function openAssignModal(auditIdLocal) {
+  if (!isAdmin()) return;
+  assignTargetAuditId = auditIdLocal;
+  var audit = auditsList.find(function(a){return a.id===auditIdLocal;});
+  assignSelectedName = audit ? (audit.auditor||'') : '';
+  document.getElementById('assign-audit-name').textContent = audit ? audit.objekt : '';
+  document.getElementById('assign-modal').classList.remove('hidden');
+  // Načti uživatele
+  var listEl = document.getElementById('assign-users-list');
+  listEl.innerHTML = '<div style="padding:30px;text-align:center;color:#a0afbe">Načítám…</div>';
+  try {
+    var snap = await db.collection('users').orderBy('name').get();
+    var rows = '';
+    // Možnost "Nepřiřazeno"
+    rows += '<label class="assign-row" style="display:flex;align-items:center;padding:12px 22px;cursor:pointer;border-bottom:1px solid #f0f4f8">'+
+      '<input type="radio" name="assignUser" value="" '+(!assignSelectedName?'checked':'')+' style="width:18px;height:18px;margin-right:12px">'+
+      '<span style="color:#a0afbe;font-style:italic">— Nepřiřazeno —</span>'+
+      '</label>';
+    snap.forEach(function(doc){
+      var u = doc.data();
+      if (u.role !== 'auditor' && u.role !== 'admin') return; // jen auditoři + admin
+      var sel = (u.name === assignSelectedName) ? 'checked' : '';
+      var roleBadge = u.role === 'admin' ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px">Admin</span>' : '';
+      rows += '<label class="assign-row" style="display:flex;align-items:center;padding:12px 22px;cursor:pointer;border-bottom:1px solid #f0f4f8">'+
+        '<input type="radio" name="assignUser" value="'+esc(u.name)+'" '+sel+' style="width:18px;height:18px;margin-right:12px">'+
+        '<span style="font-weight:600">'+esc(u.name)+'</span>'+roleBadge+
+        '</label>';
+    });
+    listEl.innerHTML = rows || '<div style="padding:30px;text-align:center;color:#a0afbe">Žádní auditoři</div>';
+  } catch(e) {
+    listEl.innerHTML = '<div style="padding:30px;text-align:center;color:#ef4444">Chyba: '+e.message+'</div>';
+  }
+}
+
+function closeAssignModal() {
+  document.getElementById('assign-modal').classList.add('hidden');
+  assignTargetAuditId = null;
+}
+
+async function saveAssignment() {
+  if (!assignTargetAuditId) return;
+  var radios = document.querySelectorAll('input[name="assignUser"]');
+  var selected = '';
+  radios.forEach(function(r){ if (r.checked) selected = r.value; });
+  try {
+    await db.collection('audits').doc(assignTargetAuditId).update({
+      auditor: selected,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast(selected ? '✓ Přiřazeno: '+selected : '✓ Přiřazení zrušeno');
+    closeAssignModal();
+    loadAuditsList();
+  } catch(e) {
+    toast('Chyba: '+e.message);
+  }
 }
 
 // Inicializace výchozího admina pokud je Firebase prázdný
@@ -2333,10 +2424,10 @@ async function loadAuditsList() {
     snap.forEach(function(doc) {
       var d = doc.data();
       // Filtrování podle role:
-      // Admin vidí vše, Auditor vidí své, Čtenář vidí jen dokončené
+      // Admin vidí vše, Auditor vidí jen své přiřazené, Čtenář vidí jen dokončené
       if (currentUser) {
         if (currentUser.role === 'reader' && d.status !== 'done') return;
-        if (currentUser.role === 'auditor' && d.auditor && d.auditor !== currentUser.name) return;
+        if (currentUser.role === 'auditor' && d.auditor !== currentUser.name) return;
       }
       auditsList.push({
         id: doc.id,
@@ -2425,6 +2516,7 @@ function renderAuditManager() {
       '<td onclick="event.stopPropagation()">'+
         '<div class="am-tactions">'+
           '<button class="am-tbtn am-tbtn-open" onclick="openAudit(\''+a.id+'\')">▶ Otevřít</button>'+
+          (isAdmin() ? '<button class="am-tbtn am-tbtn-assign" onclick="openAssignModal(\''+a.id+'\')" title="Přiřadit auditora">👤</button>' : '')+
           (isAdmin() ? '<button class="am-tbtn am-tbtn-mark" onclick="toggleDone(\''+a.id+'\',\''+a.status+'\')">'+(isDone?'↺':'✓')+'</button>' : '')+
           (isAdmin() ? '<button class="am-tbtn am-tbtn-del" onclick="deleteAudit(\''+a.id+'\')">🗑</button>' : '')+
         '</div>'+
