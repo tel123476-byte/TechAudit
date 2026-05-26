@@ -2848,7 +2848,10 @@ function closeCostsScreen(){
   if (screen && screen.parentNode) {
     screen.parentNode.removeChild(screen);
   }
-  document.getElementById('audit-manager').classList.remove('hidden');
+  var am = document.getElementById('audit-manager');
+  am.classList.remove('hidden');
+  am.style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
 }
 
 function openCostsScreen(){
@@ -3194,7 +3197,11 @@ function closeBudgetScreen(){
     screen.parentNode.removeChild(screen);
   }
   // Zajisti že úvodní obrazovka je vidět
-  document.getElementById('audit-manager').classList.remove('hidden');
+  var am = document.getElementById('audit-manager');
+  am.classList.remove('hidden');
+  am.style.display = 'flex';
+  // Skryj editor pokud byl otevřen
+  document.getElementById('app').style.display = 'none';
 }
 
 async function switchBudgetTab(tab){
