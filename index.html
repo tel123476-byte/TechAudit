@@ -888,6 +888,22 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   </div>
 </div>
 
+<!-- COSTS SCREEN — NÁKLADY AUDITŮ (admin only) -->
+<div id="costs-screen" class="hidden" style="background:#f5f7fa;min-height:100vh;padding:24px;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow-y:auto">
+  <div style="max-width:1100px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+      <div style="font-size:24px">💼</div>
+      <div style="flex:1">
+        <div style="font-size:20px;font-weight:700;color:#0f172a">Náklady auditů</div>
+        <div style="font-size:12px;color:#64748b">Přehled hodin auditorů × sazba + doprava + další položky</div>
+      </div>
+      <button class="btn btn-g" onclick="closeCostsScreen()" style="font-size:11px">← Zpět</button>
+    </div>
+    <div id="costs-list-view"></div>
+    <div id="costs-detail-view" style="display:none"></div>
+  </div>
+</div>
+
 <!-- SPRÁVCE AUDITŮ — RILANCIO -->
 <div id="audit-manager">
 
@@ -906,6 +922,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
         <span id="am-sync-txt">Načítám...</span>
       </div>
       <button class="btn btn-g admin-only" onclick="openCostsScreen()" style="font-size:11px">💼 Náklady</button>
+      <button class="btn btn-g admin-only" onclick="openBudgetScreen()" style="font-size:11px">💰 Rozpočty</button>
       <button class="btn btn-g admin-only" onclick="openUsers()" style="font-size:11px">👥 Uživatelé</button>
       <button id="pwa-install-btn" onclick="installPWA()" style="display:none;align-items:center;gap:6px;padding:7px 12px;background:#0d9488;border:none;color:#fff;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer">
         📲 Přidat na plochu
@@ -1015,6 +1032,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
   <button class="btn btn-g" onclick="openListModal()">📋 Vady</button>
   <button id="btn-timer" class="btn" onclick="toggleTimer()" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-weight:700">▶ Zahájit</button>
   <span id="timer-display" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#065f46;padding:0 6px;display:none">00:00:00</span>
+  <button class="btn btn-g" onclick="openTimerHistory()" title="Historie kontrol">🕐 Historie</button>
   <button class="btn btn-b admin-only" onclick="openExportDlg()">📄 Export</button>
   <button class="btn btn-grn admin-only" onclick="doArchive()">📦 Archiv ZIP</button>
   <button id="btn-finish" class="btn admin-only" onclick="toggleAuditDone()" style="background:#f0f7ee;color:#2d6b26;border:1px solid #c8e0c4;font-weight:700">✓ Dokončit audit</button>
@@ -1159,6 +1177,13 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
           <input class="fi" id="pprice" type="number" min="0" step="100" placeholder="0" style="width:140px">
           <span style="font-size:11px;color:#8891a8">Kč bez DPH</span>
         </div>
+      </div>
+      <div class="fg">
+        <div class="fl" style="display:flex;align-items:center;gap:8px">
+          <span>💰 Položky z ceníku</span>
+          <button onclick="openCatalogPicker()" type="button" style="background:#2563eb;color:#fff;border:0;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:11px;margin-left:auto">+ Přidat z ceníku</button>
+        </div>
+        <div id="p-budget-items" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;min-height:40px;font-size:12px;color:#64748b">Žádné položky. Klikněte na "+ Přidat z ceníku"</div>
       </div>
       <div class="fg">
         <div class="fl">Fotografie</div>
@@ -1445,6 +1470,10 @@ async function doLogin() {
     currentUser = found;
     localStorage.setItem('techaudit_user', JSON.stringify(currentUser));
     document.getElementById('login-screen').classList.add('hidden');
+    // Vždy zobraz úvodní obrazovku (seznam auditů) po přihlášení
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('audit-manager').classList.remove('hidden');
+    document.getElementById('panel').classList.remove('open');
     applyRoleUI();
     loadAuditsList();
     toast('Vítejte, ' + currentUser.name + '!');
@@ -1456,6 +1485,9 @@ async function doLogin() {
       if (u.name.toLowerCase() === name.toLowerCase() && u.pin === pin) {
         currentUser = u;
         document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('audit-manager').classList.remove('hidden');
+        document.getElementById('panel').classList.remove('open');
         applyRoleUI();
         loadAuditsList();
         toast('Přihlášen offline — ' + currentUser.name);
@@ -2122,10 +2154,18 @@ document.getElementById('app').style.display = 'none';
     try {
       currentUser = JSON.parse(cached);
       document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('app').style.display = 'flex';
-      applyRoleUI();
-      if (sharedId) { openAudit(sharedId); }
-      else { loadAuditsList(); }
+      // Pokud je v URL ?id=... otevři přímo ten audit, jinak vždy úvodní obrazovku
+      if (sharedId) {
+        document.getElementById('app').style.display = 'flex';
+        applyRoleUI();
+        openAudit(sharedId);
+      } else {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('audit-manager').classList.remove('hidden');
+        document.getElementById('panel').classList.remove('open');
+        applyRoleUI();
+        loadAuditsList();
+      }
     } catch(e) {
       showLoginScreen();
     }
@@ -2156,10 +2196,17 @@ function showLoginScreen() {
       currentUser = found;
       localStorage.setItem('techaudit_user', JSON.stringify(currentUser));
       document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('app').style.display = 'flex';
-      applyRoleUI();
-      if (sharedId) { openAudit(sharedId); }
-      else { loadAuditsList(); }
+      if (sharedId) {
+        document.getElementById('app').style.display = 'flex';
+        applyRoleUI();
+        openAudit(sharedId);
+      } else {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('audit-manager').classList.remove('hidden');
+        document.getElementById('panel').classList.remove('open');
+        applyRoleUI();
+        loadAuditsList();
+      }
       toast('Vítejte, ' + currentUser.name + '!');
     } catch(e) {
       var cached2 = localStorage.getItem('techaudit_user');
@@ -2168,7 +2215,9 @@ function showLoginScreen() {
         if (u.name.toLowerCase() === name.toLowerCase() && u.pin === pin) {
           currentUser = u;
           document.getElementById('login-screen').classList.add('hidden');
-          document.getElementById('app').style.display = 'flex';
+          document.getElementById('app').style.display = 'none';
+          document.getElementById('audit-manager').classList.remove('hidden');
+          document.getElementById('panel').classList.remove('open');
           applyRoleUI();
           loadAuditsList();
           toast('Přihlášen offline — ' + currentUser.name);
@@ -2483,6 +2532,8 @@ async function loadAuditsList() {
         auditor: d.auditor || '',
         assignedAuditors: d.assignedAuditors || (d.auditor ? [d.auditor] : []),
         sessions: d.sessions || [],
+        costs: d.costs || {car:{km:0,ratePerKm:12}, items:[]},
+        budget: d.budget || {},
         transportCosts: d.transportCosts || [],
         datum: d.datum || '',
         status: d.status || 'active',
@@ -2714,6 +2765,762 @@ function formatDuration(seconds){
   var s = seconds%60;
   return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
 }
+
+function openTimerHistory(){
+  if (!auditId) { toast('⚠️ Otevřete nejdřív audit'); return; }
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) { toast('⚠️ Audit nenalezen'); return; }
+  var sessions = audit.sessions || [];
+  
+  // Souhrn podle auditora
+  var byAuditor = {};
+  var totalSec = 0;
+  sessions.forEach(function(s){
+    if (!s.duration && s.start && s.end) s.duration = Math.floor((s.end-s.start)/1000);
+    if (s.duration) {
+      byAuditor[s.auditor] = (byAuditor[s.auditor]||0) + s.duration;
+      totalSec += s.duration;
+    }
+  });
+  
+  var html = '<div style="padding:16px;max-width:600px">';
+  html += '<h2 style="margin:0 0 12px 0">🕐 Historie kontrol</h2>';
+  
+  if (sessions.length === 0){
+    html += '<p style="color:#666">Zatím žádné kontroly nebyly zaznamenány.</p>';
+  } else {
+    // Souhrn
+    html += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:16px">';
+    html += '<div style="font-weight:700;margin-bottom:8px">📊 Souhrn</div>';
+    Object.keys(byAuditor).forEach(function(name){
+      html += '<div style="display:flex;justify-content:space-between;padding:4px 0">';
+      html += '<span>'+name+'</span>';
+      html += '<span style="font-family:monospace;font-weight:700">'+formatDuration(byAuditor[name])+'</span>';
+      html += '</div>';
+    });
+    html += '<div style="border-top:1px solid #bae6fd;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700">';
+    html += '<span>CELKEM</span><span style="font-family:monospace">'+formatDuration(totalSec)+'</span></div>';
+    html += '</div>';
+    
+    // Detail jednotlivých sessions
+    html += '<div style="font-weight:700;margin-bottom:8px">📋 Jednotlivé kontroly</div>';
+    html += '<div style="max-height:300px;overflow-y:auto">';
+    var sortedSessions = sessions.slice().sort(function(a,b){return (b.start||0)-(a.start||0);});
+    sortedSessions.forEach(function(s){
+      var startDate = s.start ? new Date(s.start) : null;
+      var dateStr = startDate ? startDate.toLocaleDateString('cs-CZ')+' '+startDate.toLocaleTimeString('cs-CZ').slice(0,5) : '?';
+      var durStr = s.duration ? formatDuration(s.duration) : (s.end ? '?' : '⏱ běží...');
+      var bgColor = s.end ? '#f9fafb' : '#fef9c3';
+      html += '<div style="background:'+bgColor+';border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px">';
+      html += '<div><div style="font-weight:600">'+s.auditor+'</div><div style="color:#666;font-size:11px">'+dateStr+'</div></div>';
+      html += '<div style="font-family:monospace;font-weight:700;font-size:14px">'+durStr+'</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  
+  html += '<div style="margin-top:16px;text-align:right">';
+  html += '<button class="btn" onclick="closeTimerHistory()" style="background:#3b82f6;color:white;border:0;padding:8px 16px;font-weight:700">Zavřít</button>';
+  html += '</div></div>';
+  
+  // Modal
+  var existing = document.getElementById('timer-history-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'timer-history-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:white;border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto">'+html+'</div>';
+  modal.onclick = function(e){ if(e.target===modal) closeTimerHistory(); };
+  document.body.appendChild(modal);
+}
+
+function closeTimerHistory(){
+  var m = document.getElementById('timer-history-modal');
+  if (m) m.remove();
+}
+
+// ============================================================
+// NÁKLADY - Přehled nákladů auditů (admin only)
+// ============================================================
+function closeCostsScreen(){
+  // Úplně odstraň z DOM bez reloadu
+  var screen = document.getElementById('costs-screen');
+  if (screen && screen.parentNode) {
+    screen.parentNode.removeChild(screen);
+  }
+  var am = document.getElementById('audit-manager');
+  am.classList.remove('hidden');
+  am.style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+}
+
+function openCostsScreen(){
+  console.log('[COSTS] openCostsScreen called. currentUser=', currentUser);
+  if (!currentUser) { toast('⚠️ Nejste přihlášen'); return; }
+  if (!isAdmin()) { toast('⚠️ Pouze admin (role='+currentUser.role+')'); return; }
+  
+  // Pokud byl screen odstraněn, znovu vytvoř
+  var screen = document.getElementById('costs-screen');
+  if (!screen) {
+    screen = document.createElement('div');
+    screen.id = 'costs-screen';
+    screen.innerHTML = '<div style="max-width:1100px;margin:0 auto">'+
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+
+        '<div style="font-size:24px">💼</div>'+
+        '<div style="flex:1">'+
+          '<div style="font-size:20px;font-weight:700;color:#0f172a">Náklady auditů</div>'+
+          '<div style="font-size:12px;color:#64748b">Přehled hodin auditorů × sazba + doprava + další položky</div>'+
+        '</div>'+
+        '<button class="btn btn-g" onclick="closeCostsScreen()" style="font-size:11px">← Zpět</button>'+
+      '</div>'+
+      '<div id="costs-list-view"></div>'+
+      '<div id="costs-detail-view" style="display:none"></div>'+
+    '</div>';
+    document.body.appendChild(screen);
+  }
+  
+  screen.style.cssText = 'background:#f5f7fa;min-height:100vh;padding:24px;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow-y:auto;display:block';
+  document.getElementById('costs-detail-view').style.display = 'none';
+  document.getElementById('costs-list-view').style.display = 'block';
+  renderCostsList();
+}
+
+function closeCostsScreen_OLD_REMOVED(){
+  document.getElementById('costs-screen').classList.add('hidden');
+}
+
+function renderCostsList(){
+  var list = document.getElementById('costs-list-view');
+  if (!auditsList || auditsList.length === 0){
+    list.innerHTML = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:30px;text-align:center;color:#64748b">Žádné audity nejsou k dispozici.</div>';
+    return;
+  }
+  
+  var html = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">';
+  html += '<th style="padding:12px 16px;text-align:left;font-weight:600;color:#475569">Audit</th>';
+  html += '<th style="padding:12px 16px;text-align:left;font-weight:600;color:#475569">Datum</th>';
+  html += '<th style="padding:12px 16px;text-align:right;font-weight:600;color:#475569">Hodiny</th>';
+  html += '<th style="padding:12px 16px;text-align:right;font-weight:600;color:#475569">Celkem Kč</th>';
+  html += '<th style="padding:12px 16px;text-align:center;font-weight:600;color:#475569"></th>';
+  html += '</tr></thead><tbody>';
+  
+  auditsList.forEach(function(audit){
+    var totals = calculateAuditCosts(audit);
+    html += '<tr style="border-bottom:1px solid #f1f5f9">';
+    html += '<td style="padding:12px 16px;font-weight:600">'+esc(audit.objekt||'(bez názvu)')+'</td>';
+    html += '<td style="padding:12px 16px;color:#64748b">'+esc(audit.datum||audit.updatedAt||'—')+'</td>';
+    html += '<td style="padding:12px 16px;text-align:right;font-family:monospace">'+formatDuration(totals.totalSeconds)+'</td>';
+    html += '<td style="padding:12px 16px;text-align:right;font-weight:700;color:#2563eb">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td>';
+    html += '<td style="padding:12px 16px;text-align:center"><button class="btn btn-b" onclick="openCostsDetail(\''+audit.id+'\')" style="font-size:11px;padding:5px 12px">Detail</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  list.innerHTML = html;
+}
+
+function calculateAuditCosts(audit){
+  var sessions = audit.sessions || [];
+  var costs = audit.costs || {};
+  var car = costs.car || {km:0, ratePerKm:12};
+  var items = costs.items || [];
+  
+  // Hodiny podle auditora × sazba
+  var byAuditor = {};
+  var totalSeconds = 0;
+  sessions.forEach(function(s){
+    if (!s.duration && s.start && s.end) s.duration = Math.floor((s.end-s.start)/1000);
+    if (s.duration && s.end) {
+      byAuditor[s.auditor] = (byAuditor[s.auditor]||0) + s.duration;
+      totalSeconds += s.duration;
+    }
+  });
+  
+  // Najdi sazby uživatelů
+  var laborTotal = 0;
+  var laborDetails = [];
+  Object.keys(byAuditor).forEach(function(name){
+    var seconds = byAuditor[name];
+    var hours = seconds / 3600;
+    var rate = getUserRate(name);
+    var amount = Math.round(hours * rate);
+    laborTotal += amount;
+    laborDetails.push({name:name, seconds:seconds, hours:hours, rate:rate, amount:amount});
+  });
+  
+  var carTotal = (car.km || 0) * (car.ratePerKm || 0);
+  var itemsTotal = items.reduce(function(s,i){return s + (Number(i.amount)||0);}, 0);
+  
+  return {
+    totalSeconds: totalSeconds,
+    laborDetails: laborDetails,
+    laborTotal: laborTotal,
+    car: car,
+    carTotal: carTotal,
+    items: items,
+    itemsTotal: itemsTotal,
+    grandTotal: laborTotal + carTotal + itemsTotal
+  };
+}
+
+function getUserRate(name){
+  // Cache uživatelů v globální proměnné
+  if (!window._userRatesCache) window._userRatesCache = {};
+  if (window._userRatesCache[name] != null) return window._userRatesCache[name];
+  return 0; // bude doplněno asynchronně
+}
+
+async function loadUserRates(){
+  try {
+    var snap = await db.collection('users').get();
+    window._userRatesCache = {};
+    snap.forEach(function(doc){
+      var u = doc.data();
+      window._userRatesCache[u.name] = Number(u.hourlyRate)||0;
+    });
+  } catch(e){ console.warn('Load rates error:', e.message); }
+}
+
+async function openCostsDetail(auditId){
+  await loadUserRates(); // Načti aktuální sazby
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) { toast('Audit nenalezen'); return; }
+  
+  document.getElementById('costs-list-view').style.display = 'none';
+  var view = document.getElementById('costs-detail-view');
+  view.style.display = 'block';
+  
+  renderCostsDetail(audit);
+}
+
+function renderCostsDetail(audit){
+  var view = document.getElementById('costs-detail-view');
+  var totals = calculateAuditCosts(audit);
+  var costs = audit.costs || {};
+  var car = costs.car || {km:0, ratePerKm:12};
+  var items = costs.items || [];
+  
+  var html = '<button class="btn btn-g" onclick="renderCostsList();document.getElementById(\'costs-detail-view\').style.display=\'none\';document.getElementById(\'costs-list-view\').style.display=\'block\'" style="font-size:11px;margin-bottom:16px">← Seznam auditů</button>';
+  
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px">'+esc(audit.objekt||'(bez názvu)')+'</div>';
+  html += '<div style="font-size:13px;color:#64748b">'+(audit.datum?'📅 '+esc(audit.datum):'')+'</div>';
+  html += '</div>';
+  
+  // PRÁCE
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:8px">👷 Práce auditorů</div>';
+  if (totals.laborDetails.length === 0){
+    html += '<div style="color:#94a3b8;font-size:13px">Žádné ukončené kontroly</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Auditor</th><th style="padding:8px 10px;text-align:right">Čas</th><th style="padding:8px 10px;text-align:right">Hodin</th><th style="padding:8px 10px;text-align:right">Sazba</th><th style="padding:8px 10px;text-align:right">Celkem</th></tr></thead><tbody>';
+    totals.laborDetails.forEach(function(d){
+      html += '<tr style="border-top:1px solid #f1f5f9">';
+      html += '<td style="padding:8px 10px;font-weight:600">'+esc(d.name)+'</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">'+formatDuration(d.seconds)+'</td>';
+      html += '<td style="padding:8px 10px;text-align:right">'+d.hours.toFixed(2)+' h</td>';
+      html += '<td style="padding:8px 10px;text-align:right">'+d.rate+' Kč/h</td>';
+      html += '<td style="padding:8px 10px;text-align:right;font-weight:700">'+d.amount.toLocaleString('cs-CZ')+' Kč</td>';
+      html += '</tr>';
+    });
+    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td colspan="4" style="padding:10px;text-align:right;font-weight:700">Mzdy celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#2563eb">'+totals.laborTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td></tr>';
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  
+  // AUTO
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px">🚗 Doprava autem</div>';
+  html += '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">';
+  html += '<label style="font-size:13px">Km: <input type="number" id="cost-car-km" value="'+(car.km||0)+'" min="0" style="width:100px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
+  html += '<label style="font-size:13px">Sazba Kč/km: <input type="number" id="cost-car-rate" value="'+(car.ratePerKm||12)+'" min="0" step="0.5" style="width:80px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
+  html += '<div style="margin-left:auto;font-weight:700;font-size:15px;color:#2563eb">'+totals.carTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></div>';
+  html += '</div></div>';
+  
+  // VOLNÉ POLOŽKY
+  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
+  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:8px">📋 Další položky <button onclick="addCostItem(\''+audit.id+'\')" style="background:#3b82f6;color:#fff;border:0;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;margin-left:auto">+ Přidat</button></div>';
+  
+  if (items.length === 0){
+    html += '<div style="color:#94a3b8;font-size:13px">Žádné položky. Přidejte parkovné, MHD, materiál atd.</div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+    html += '<thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Název</th><th style="padding:8px 10px;text-align:right">Částka</th><th style="padding:8px 10px;text-align:center;width:60px"></th></tr></thead><tbody>';
+    items.forEach(function(it, idx){
+      html += '<tr style="border-top:1px solid #f1f5f9">';
+      html += '<td style="padding:6px 10px"><input type="text" value="'+esc(it.name||'')+'" placeholder="např. Parkovné" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px" onchange="updateCostItem(\''+audit.id+'\','+idx+',\'name\',this.value)"></td>';
+      html += '<td style="padding:6px 10px;text-align:right"><input type="number" value="'+(it.amount||0)+'" min="0" style="width:120px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;text-align:right" onchange="updateCostItem(\''+audit.id+'\','+idx+',\'amount\',this.value)"> Kč</td>';
+      html += '<td style="padding:6px 10px;text-align:center"><button onclick="deleteCostItem(\''+audit.id+'\','+idx+')" style="background:#fee2e2;color:#991b1b;border:0;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:11px">×</button></td>';
+      html += '</tr>';
+    });
+    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td style="padding:10px;text-align:right;font-weight:700">Položky celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#2563eb">'+totals.itemsTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td><td></td></tr>';
+    html += '</tbody></table>';
+  }
+  html += '</div>';
+  
+  // CELKEM
+  html += '<div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-radius:10px;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">';
+  html += '<div style="font-size:16px;font-weight:600">💰 CELKOVÉ NÁKLADY</div>';
+  html += '<div style="text-align:right"><div style="font-size:28px;font-weight:800;font-family:monospace">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč</div><div style="font-size:11px;opacity:0.85;margin-top:2px">bez DPH</div></div>';
+  html += '</div>';
+  
+  view.innerHTML = html;
+}
+
+async function updateCarCost(auditId){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) return;
+  var km = Number(document.getElementById('cost-car-km').value)||0;
+  var rate = Number(document.getElementById('cost-car-rate').value)||0;
+  audit.costs = audit.costs || {};
+  audit.costs.car = {km:km, ratePerKm:rate};
+  await saveCosts(audit);
+  renderCostsDetail(audit);
+}
+
+async function addCostItem(auditId){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) return;
+  audit.costs = audit.costs || {};
+  audit.costs.items = audit.costs.items || [];
+  audit.costs.items.push({name:'', amount:0});
+  await saveCosts(audit);
+  renderCostsDetail(audit);
+}
+
+async function updateCostItem(auditId, idx, field, value){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit || !audit.costs || !audit.costs.items) return;
+  audit.costs.items[idx][field] = field === 'amount' ? (Number(value)||0) : value;
+  await saveCosts(audit);
+  if (field === 'amount') renderCostsDetail(audit);
+}
+
+async function deleteCostItem(auditId, idx){
+  if (!confirm('Smazat tuto položku?')) return;
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit || !audit.costs || !audit.costs.items) return;
+  audit.costs.items.splice(idx, 1);
+  await saveCosts(audit);
+  renderCostsDetail(audit);
+}
+
+async function saveCosts(audit){
+  try {
+    await db.collection('audits').doc(audit.id).update({
+      costs: audit.costs,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { 
+    console.warn('Costs save error:', e.message); 
+    toast('⚠️ Chyba při ukládání');
+  }
+}
+
+// ============================================================
+// ROZPOČTY - Ceník oprav a per-audit rozpočty (admin only)
+// ============================================================
+var DEFAULT_CATALOG = {"vzt":{"name":"VZT-HVAC","icon":"🌬️","items":[{"id":"vzt_001","name":"Výměna vzduchotechnické jednotky střešní (do 5000 m³/h)","category":"Větrací zařízení a komponenty","unit":"ks","priceMin":85000.0,"priceDefault":145000.0,"priceMax":250000.0,"note":"Včetně demontáže staré, ne dopravy"},{"id":"vzt_002","name":"Výměna VZT jednotky střešní (5000-15000 m³/h)","category":"Větrací zařízení a komponenty","unit":"ks","priceMin":220000.0,"priceDefault":380000.0,"priceMax":650000.0,"note":"Větší kapacita"},{"id":"vzt_003","name":"Servis VZT jednotky - generální","category":"Větrací zařízení a komponenty","unit":"ks","priceMin":8500.0,"priceDefault":14500.0,"priceMax":22000.0,"note":"Roční servis, výměna filtrů"},{"id":"vzt_004","name":"Výměna ventilátoru axiálního","category":"Větrací zařízení a komponenty","unit":"ks","priceMin":4500.0,"priceDefault":8500.0,"priceMax":15000.0,"note":"Bez dopravy"},{"id":"vzt_005","name":"Výměna ventilátoru radiálního","category":"Větrací zařízení a komponenty","unit":"ks","priceMin":8500.0,"priceDefault":15500.0,"priceMax":28000.0,"note":""},{"id":"vzt_006","name":"Výměna potrubí pozinkovaného ⌀ do 200 mm","category":"Vzduchotechnické potrubí","unit":"bm","priceMin":850.0,"priceDefault":1450.0,"priceMax":2200.0,"note":"Bez izolace"},{"id":"vzt_007","name":"Výměna potrubí pozinkovaného ⌀ 200-500 mm","category":"Vzduchotechnické potrubí","unit":"bm","priceMin":1400.0,"priceDefault":2200.0,"priceMax":3500.0,"note":""},{"id":"vzt_008","name":"Výměna potrubí pozinkovaného ⌀ nad 500 mm","category":"Vzduchotechnické potrubí","unit":"bm","priceMin":2200.0,"priceDefault":3500.0,"priceMax":5500.0,"note":""},{"id":"vzt_009","name":"Tepelná izolace VZT potrubí (40 mm)","category":"Vzduchotechnické potrubí","unit":"m²","priceMin":280.0,"priceDefault":420.0,"priceMax":650.0,"note":"Kaučuková nebo PE"},{"id":"vzt_010","name":"Čištění VZT potrubí (dezinfekce)","category":"Vzduchotechnické potrubí","unit":"m²","priceMin":180.0,"priceDefault":280.0,"priceMax":450.0,"note":"Včetně dokumentace"},{"id":"vzt_011","name":"Výměna anemostatu stropního","category":"Distribuční prvky","unit":"ks","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":""},{"id":"vzt_012","name":"Výměna mřížky / vyústky","category":"Distribuční prvky","unit":"ks","priceMin":350.0,"priceDefault":650.0,"priceMax":1200.0,"note":""},{"id":"vzt_013","name":"Výměna regulátoru průtoku (VAV/CAV)","category":"Distribuční prvky","unit":"ks","priceMin":4500.0,"priceDefault":7800.0,"priceMax":14000.0,"note":"Včetně oživení"},{"id":"vzt_014","name":"Výměna požární klapky se servoponhonem","category":"Distribuční prvky","unit":"ks","priceMin":6500.0,"priceDefault":11500.0,"priceMax":18500.0,"note":"Včetně atestu"},{"id":"vzt_015","name":"Výměna split jednotky vnitřní (3-5 kW)","category":"Klimatizace","unit":"ks","priceMin":18500.0,"priceDefault":32000.0,"priceMax":52000.0,"note":"Včetně instalace"},{"id":"vzt_016","name":"Výměna split jednotky venkovní (3-5 kW)","category":"Klimatizace","unit":"ks","priceMin":22000.0,"priceDefault":38000.0,"priceMax":65000.0,"note":""},{"id":"vzt_017","name":"Servis klimatizační jednotky","category":"Klimatizace","unit":"ks","priceMin":1800.0,"priceDefault":2800.0,"priceMax":4500.0,"note":"Roční čištění a kontrola"},{"id":"vzt_018","name":"Doplnění chladiva R32/R410A","category":"Klimatizace","unit":"kg","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":"Cena za kg"},{"id":"vzt_019","name":"Výměna chillerové jednotky (50 kW)","category":"Klimatizace","unit":"ks","priceMin":280000.0,"priceDefault":450000.0,"priceMax":750000.0,"note":""},{"id":"vzt_020","name":"Výměna fancoilu kazetového","category":"Klimatizace","unit":"ks","priceMin":14500.0,"priceDefault":24000.0,"priceMax":38000.0,"note":""},{"id":"vzt_021","name":"Výměna teplotního čidla VZT","category":"MaR pro VZT","unit":"ks","priceMin":1850.0,"priceDefault":2800.0,"priceMax":4500.0,"note":""},{"id":"vzt_022","name":"Kalibrace celé VZT regulace","category":"MaR pro VZT","unit":"h","priceMin":1200.0,"priceDefault":1650.0,"priceMax":2200.0,"note":"Cena za hodinu"}]},"zti":{"name":"ZTI - voda a kanalizace","icon":"💧","items":[{"id":"zti_001","name":"Výměna potrubí měděného ⌀ 15-22 mm","category":"Vodovodní rozvody","unit":"bm","priceMin":850.0,"priceDefault":1350.0,"priceMax":2100.0,"note":"Včetně tvarovek"},{"id":"zti_002","name":"Výměna potrubí měděného ⌀ 28-42 mm","category":"Vodovodní rozvody","unit":"bm","priceMin":1200.0,"priceDefault":1850.0,"priceMax":2800.0,"note":""},{"id":"zti_003","name":"Výměna potrubí plastového PEX/PPR ⌀ 16-32 mm","category":"Vodovodní rozvody","unit":"bm","priceMin":450.0,"priceDefault":750.0,"priceMax":1200.0,"note":"Levnější varianta"},{"id":"zti_004","name":"Výměna stoupacího potrubí (1 patro)","category":"Vodovodní rozvody","unit":"ks","priceMin":8500.0,"priceDefault":14500.0,"priceMax":22000.0,"note":"Komplet etáž"},{"id":"zti_005","name":"Tepelná izolace potrubí teplé vody","category":"Vodovodní rozvody","unit":"bm","priceMin":280.0,"priceDefault":420.0,"priceMax":650.0,"note":"Mirelon nebo kaučuk"},{"id":"zti_006","name":"Výměna kulového ventilu ⌀ 15-32 mm","category":"Armatury a baterie","unit":"ks","priceMin":450.0,"priceDefault":850.0,"priceMax":1500.0,"note":""},{"id":"zti_007","name":"Výměna kulového ventilu ⌀ 40-50 mm","category":"Armatury a baterie","unit":"ks","priceMin":1200.0,"priceDefault":2200.0,"priceMax":3800.0,"note":""},{"id":"zti_008","name":"Výměna pákové baterie umyvadlové","category":"Armatury a baterie","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":"Včetně demontáže"},{"id":"zti_009","name":"Výměna sprchové baterie","category":"Armatury a baterie","unit":"ks","priceMin":2400.0,"priceDefault":4200.0,"priceMax":7500.0,"note":""},{"id":"zti_010","name":"Výměna termostatické baterie","category":"Armatury a baterie","unit":"ks","priceMin":4500.0,"priceDefault":7500.0,"priceMax":12500.0,"note":""},{"id":"zti_011","name":"Výměna WC kombi","category":"Zařizovací předměty WC/koupelny","unit":"ks","priceMin":4500.0,"priceDefault":7800.0,"priceMax":12500.0,"note":"Včetně demontáže"},{"id":"zti_012","name":"Výměna WC závěsného s nádržkou v zdi","category":"Zařizovací předměty WC/koupelny","unit":"ks","priceMin":12500.0,"priceDefault":22000.0,"priceMax":38000.0,"note":""},{"id":"zti_013","name":"Výměna umyvadla","category":"Zařizovací předměty WC/koupelny","unit":"ks","priceMin":2800.0,"priceDefault":4500.0,"priceMax":7800.0,"note":"Bez baterie"},{"id":"zti_014","name":"Výměna pisoáru","category":"Zařizovací předměty WC/koupelny","unit":"ks","priceMin":4500.0,"priceDefault":8500.0,"priceMax":14500.0,"note":""},{"id":"zti_015","name":"Výměna sprchového setu","category":"Zařizovací předměty WC/koupelny","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":""},{"id":"zti_016","name":"Výměna kanalizačního potrubí PVC ⌀ 50-110 mm","category":"Kanalizace a odpady","unit":"bm","priceMin":650.0,"priceDefault":1100.0,"priceMax":1800.0,"note":"Včetně tvarovek"},{"id":"zti_017","name":"Výměna stoupacího odpadu (1 patro)","category":"Kanalizace a odpady","unit":"ks","priceMin":6500.0,"priceDefault":11500.0,"priceMax":18500.0,"note":""},{"id":"zti_018","name":"Pročištění kanalizace tlakem","category":"Kanalizace a odpady","unit":"ks","priceMin":2500.0,"priceDefault":4500.0,"priceMax":8500.0,"note":"Včetně kamerové prohlídky"},{"id":"zti_019","name":"Výměna podlahové vpusti","category":"Kanalizace a odpady","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":""},{"id":"zti_020","name":"Výměna elektrického bojleru 80-120 l","category":"Ohřev teplé vody","unit":"ks","priceMin":8500.0,"priceDefault":14500.0,"priceMax":22000.0,"note":"Včetně instalace"},{"id":"zti_021","name":"Výměna zásobníku TUV 200-300 l","category":"Ohřev teplé vody","unit":"ks","priceMin":18500.0,"priceDefault":32000.0,"priceMax":52000.0,"note":""},{"id":"zti_022","name":"Servis bojleru - výměna anody","category":"Ohřev teplé vody","unit":"ks","priceMin":1850.0,"priceDefault":2800.0,"priceMax":4500.0,"note":""}]},"elektro":{"name":"Elektroinstalace","icon":"⚡","items":[{"id":"elektro_001","name":"Vedení CYKY 3x1.5 / 3x2.5 v omítce","category":"Silnoproudé rozvody","unit":"bm","priceMin":280.0,"priceDefault":420.0,"priceMax":650.0,"note":"Včetně sekání drážky"},{"id":"elektro_002","name":"Vedení CYKY na povrchu (kabelový žlab)","category":"Silnoproudé rozvody","unit":"bm","priceMin":180.0,"priceDefault":280.0,"priceMax":450.0,"note":"Bez žlabu"},{"id":"elektro_003","name":"Instalace kabelového žlabu šíře 100-300 mm","category":"Silnoproudé rozvody","unit":"bm","priceMin":450.0,"priceDefault":750.0,"priceMax":1200.0,"note":""},{"id":"elektro_004","name":"Výměna hlavního přívodu (do 50 m)","category":"Silnoproudé rozvody","unit":"kpl","priceMin":18500.0,"priceDefault":32000.0,"priceMax":65000.0,"note":"Záleží na průřezu"},{"id":"elektro_005","name":"Pokládka kabelu silového CYKY 5x16","category":"Silnoproudé rozvody","unit":"bm","priceMin":850.0,"priceDefault":1350.0,"priceMax":2100.0,"note":""},{"id":"elektro_006","name":"Výměna jističe 1-fázového","category":"Rozvaděče","unit":"ks","priceMin":350.0,"priceDefault":650.0,"priceMax":1200.0,"note":"Včetně práce"},{"id":"elektro_007","name":"Výměna jističe 3-fázového","category":"Rozvaděče","unit":"ks","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":""},{"id":"elektro_008","name":"Výměna proudového chrániče 4-pólového","category":"Rozvaděče","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":""},{"id":"elektro_009","name":"Výměna kompletního podružného rozvaděče","category":"Rozvaděče","unit":"ks","priceMin":18500.0,"priceDefault":35000.0,"priceMax":65000.0,"note":"Včetně osazení"},{"id":"elektro_010","name":"Revize rozvaděče","category":"Rozvaděče","unit":"ks","priceMin":2500.0,"priceDefault":4500.0,"priceMax":7500.0,"note":"Včetně protokolu"},{"id":"elektro_011","name":"Výměna vypínače jednoduchého","category":"Spínače a zásuvky","unit":"ks","priceMin":280.0,"priceDefault":480.0,"priceMax":850.0,"note":""},{"id":"elektro_012","name":"Výměna zásuvky 230V","category":"Spínače a zásuvky","unit":"ks","priceMin":350.0,"priceDefault":580.0,"priceMax":950.0,"note":""},{"id":"elektro_013","name":"Výměna zásuvky 400V (CEE)","category":"Spínače a zásuvky","unit":"ks","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":""},{"id":"elektro_014","name":"Instalace nové zásuvky včetně rozvodu","category":"Spínače a zásuvky","unit":"ks","priceMin":1850.0,"priceDefault":2800.0,"priceMax":4500.0,"note":"Do 5 m"},{"id":"elektro_015","name":"Výměna zářivkového svítidla 4x18W za LED panel 60x60","category":"Osvětlení","unit":"ks","priceMin":2400.0,"priceDefault":3800.0,"priceMax":5800.0,"note":"Včetně práce"},{"id":"elektro_016","name":"Výměna stropního LED svítidla","category":"Osvětlení","unit":"ks","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":""},{"id":"elektro_017","name":"Instalace nového bodového LED svítidla","category":"Osvětlení","unit":"ks","priceMin":650.0,"priceDefault":1100.0,"priceMax":1800.0,"note":""},{"id":"elektro_018","name":"Výměna nouzového LED svítidla","category":"Osvětlení","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":"Včetně atestu"},{"id":"elektro_019","name":"Výměna osvětlovacího sloupu LED venkovní","category":"Osvětlení","unit":"ks","priceMin":14500.0,"priceDefault":24000.0,"priceMax":38000.0,"note":""},{"id":"elektro_020","name":"Revize elektroinstalace celkové (do 100 m²)","category":"Revize a měření","unit":"kpl","priceMin":5500.0,"priceDefault":8500.0,"priceMax":14000.0,"note":"Včetně protokolu"},{"id":"elektro_021","name":"Revize elektroinstalace celkové (100-500 m²)","category":"Revize a měření","unit":"kpl","priceMin":12500.0,"priceDefault":22000.0,"priceMax":38000.0,"note":""},{"id":"elektro_022","name":"Revize hromosvodu","category":"Revize a měření","unit":"kpl","priceMin":3500.0,"priceDefault":5500.0,"priceMax":8500.0,"note":""},{"id":"elektro_023","name":"Termografie rozvaděče","category":"Revize a měření","unit":"kpl","priceMin":4500.0,"priceDefault":7500.0,"priceMax":12500.0,"note":"Včetně protokolu"},{"id":"elektro_024","name":"Výměna datové zásuvky RJ45 cat.6","category":"Slaboproud","unit":"ks","priceMin":580.0,"priceDefault":950.0,"priceMax":1500.0,"note":""},{"id":"elektro_025","name":"Pokládka strukturované kabeláže UTP cat.6","category":"Slaboproud","unit":"bm","priceMin":180.0,"priceDefault":280.0,"priceMax":450.0,"note":""},{"id":"elektro_026","name":"Výměna IP kamery","category":"Slaboproud","unit":"ks","priceMin":6500.0,"priceDefault":12500.0,"priceMax":22000.0,"note":"Včetně konfigurace"},{"id":"elektro_027","name":"Servis EPS (požární systém) - roční","category":"Slaboproud","unit":"kpl","priceMin":4500.0,"priceDefault":8500.0,"priceMax":18500.0,"note":"Dle počtu hlásičů"},{"id":"elektro_028","name":"Servis EZS (zabezpečení) - roční","category":"Slaboproud","unit":"kpl","priceMin":3500.0,"priceDefault":6500.0,"priceMax":14500.0,"note":""}]},"mar":{"name":"MaR","icon":"🎛️","items":[{"id":"mar_001","name":"Výměna procesoru DDC stanice","category":"Měření a regulace - obecně","unit":"ks","priceMin":18500.0,"priceDefault":32000.0,"priceMax":55000.0,"note":""},{"id":"mar_002","name":"Výměna komunikačního modulu","category":"Měření a regulace - obecně","unit":"ks","priceMin":8500.0,"priceDefault":14500.0,"priceMax":24000.0,"note":""},{"id":"mar_003","name":"Programování regulátoru","category":"Měření a regulace - obecně","unit":"h","priceMin":1500.0,"priceDefault":2200.0,"priceMax":3200.0,"note":"Cena za hodinu"},{"id":"mar_004","name":"Servis MaR - revize celého systému","category":"Měření a regulace - obecně","unit":"kpl","priceMin":12500.0,"priceDefault":22000.0,"priceMax":45000.0,"note":"Dle velikosti"},{"id":"mar_005","name":"Vstupní/výstupní karta","category":"Měření a regulace - obecně","unit":"ks","priceMin":4500.0,"priceDefault":7500.0,"priceMax":12500.0,"note":""},{"id":"mar_006","name":"Teplotní čidlo prostorové","category":"Čidla","unit":"ks","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":"Včetně instalace"},{"id":"mar_007","name":"Teplotní čidlo potrubní/kapalinové","category":"Čidla","unit":"ks","priceMin":1200.0,"priceDefault":1850.0,"priceMax":2800.0,"note":""},{"id":"mar_008","name":"Čidlo vlhkosti prostorové","category":"Čidla","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":""},{"id":"mar_009","name":"Čidlo CO2","category":"Čidla","unit":"ks","priceMin":2400.0,"priceDefault":4500.0,"priceMax":7500.0,"note":""},{"id":"mar_010","name":"Tlakové čidlo","category":"Čidla","unit":"ks","priceMin":2800.0,"priceDefault":4500.0,"priceMax":7800.0,"note":""},{"id":"mar_011","name":"Průtoková sonda","category":"Čidla","unit":"ks","priceMin":4500.0,"priceDefault":7800.0,"priceMax":12500.0,"note":""},{"id":"mar_012","name":"Servopohon klapkový","category":"Pohony a ventily","unit":"ks","priceMin":2800.0,"priceDefault":4500.0,"priceMax":7800.0,"note":""},{"id":"mar_013","name":"Servopohon ventilový kapalinový","category":"Pohony a ventily","unit":"ks","priceMin":3500.0,"priceDefault":5800.0,"priceMax":9500.0,"note":""},{"id":"mar_014","name":"Třícestný směšovací ventil DN15-50","category":"Pohony a ventily","unit":"ks","priceMin":2400.0,"priceDefault":4200.0,"priceMax":7500.0,"note":""}]},"stavebni":{"name":"Stavební úpravy","icon":"🧱","items":[{"id":"stavebni_001","name":"Oprava praskliny v omítce","category":"Omítky a malby","unit":"bm","priceMin":180.0,"priceDefault":280.0,"priceMax":450.0,"note":"Včetně lokálního přemalování"},{"id":"stavebni_002","name":"Lokální oprava omítky (do 1 m²)","category":"Omítky a malby","unit":"m²","priceMin":380.0,"priceDefault":580.0,"priceMax":850.0,"note":""},{"id":"stavebni_003","name":"Celkové omítání stěny (jádro + štuk)","category":"Omítky a malby","unit":"m²","priceMin":480.0,"priceDefault":750.0,"priceMax":1200.0,"note":""},{"id":"stavebni_004","name":"Malba bílá disperzní (2 vrstvy)","category":"Omítky a malby","unit":"m²","priceMin":95.0,"priceDefault":145.0,"priceMax":220.0,"note":""},{"id":"stavebni_005","name":"Malba barevná disperzní (2 vrstvy)","category":"Omítky a malby","unit":"m²","priceMin":120.0,"priceDefault":180.0,"priceMax":280.0,"note":""},{"id":"stavebni_006","name":"Sádrokartonová příčka jednoduchá","category":"Omítky a malby","unit":"m²","priceMin":850.0,"priceDefault":1250.0,"priceMax":1850.0,"note":"Včetně tepelné izolace"},{"id":"stavebni_007","name":"Sádrokartonový podhled rovný","category":"Omítky a malby","unit":"m²","priceMin":580.0,"priceDefault":850.0,"priceMax":1200.0,"note":""},{"id":"stavebni_008","name":"Akustický podhled minerální","category":"Omítky a malby","unit":"m²","priceMin":980.0,"priceDefault":1450.0,"priceMax":2200.0,"note":"Včetně rastru"},{"id":"stavebni_009","name":"Pokládka koberce zátěžového","category":"Podlahy","unit":"m²","priceMin":380.0,"priceDefault":580.0,"priceMax":950.0,"note":"Včetně lepidla"},{"id":"stavebni_010","name":"Pokládka koberce kazetového","category":"Podlahy","unit":"m²","priceMin":580.0,"priceDefault":850.0,"priceMax":1450.0,"note":""},{"id":"stavebni_011","name":"PVC heterogenní lepené","category":"Podlahy","unit":"m²","priceMin":480.0,"priceDefault":750.0,"priceMax":1200.0,"note":"Tarkett apod."},{"id":"stavebni_012","name":"Vinyl plovoucí (luxusní)","category":"Podlahy","unit":"m²","priceMin":680.0,"priceDefault":1100.0,"priceMax":1850.0,"note":""},{"id":"stavebni_013","name":"Laminátová plovoucí podlaha","category":"Podlahy","unit":"m²","priceMin":380.0,"priceDefault":580.0,"priceMax":950.0,"note":""},{"id":"stavebni_014","name":"Dřevěné parkety laminátové","category":"Podlahy","unit":"m²","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":""},{"id":"stavebni_015","name":"Keramická dlažba","category":"Podlahy","unit":"m²","priceMin":850.0,"priceDefault":1250.0,"priceMax":1850.0,"note":"Bez materiálu"},{"id":"stavebni_016","name":"Renovace dřevěné podlahy (broušení + lak)","category":"Podlahy","unit":"m²","priceMin":580.0,"priceDefault":850.0,"priceMax":1450.0,"note":""},{"id":"stavebni_017","name":"Výměna interiérových dveří kompl. s zárubní","category":"Otvorové výplně","unit":"ks","priceMin":8500.0,"priceDefault":14500.0,"priceMax":22000.0,"note":"Vč. kování"},{"id":"stavebni_018","name":"Servis dveřního zavírače","category":"Otvorové výplně","unit":"ks","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":""},{"id":"stavebni_019","name":"Výměna dveřního zámku","category":"Otvorové výplně","unit":"ks","priceMin":1450.0,"priceDefault":2400.0,"priceMax":4500.0,"note":""},{"id":"stavebni_020","name":"Výměna plastového okna (1.5 x 1.2 m)","category":"Otvorové výplně","unit":"ks","priceMin":8500.0,"priceDefault":14500.0,"priceMax":22000.0,"note":"Včetně demontáže"},{"id":"stavebni_021","name":"Výměna hliníkového okna (1.5 x 1.2 m)","category":"Otvorové výplně","unit":"ks","priceMin":14500.0,"priceDefault":24000.0,"priceMax":38000.0,"note":""},{"id":"stavebni_022","name":"Seřízení plastových oken","category":"Otvorové výplně","unit":"ks","priceMin":580.0,"priceDefault":950.0,"priceMax":1500.0,"note":"Cena za 1 okno"},{"id":"stavebni_023","name":"Odstranění plísně (lokální do 2 m²)","category":"Sanace","unit":"m²","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":"Včetně sanačního nátěru"},{"id":"stavebni_024","name":"Sanační omítka (vlhké zdivo)","category":"Sanace","unit":"m²","priceMin":980.0,"priceDefault":1450.0,"priceMax":2200.0,"note":""},{"id":"stavebni_025","name":"Hydroizolace stěn injektáží","category":"Sanace","unit":"bm","priceMin":2400.0,"priceDefault":3800.0,"priceMax":5800.0,"note":""}]},"klempir":{"name":"Klempir-Izolater-Tesar","icon":"🔨","items":[{"id":"klempir_001","name":"Lokální oprava plochy střechy (asfaltové pásy)","category":"Střechy","unit":"m²","priceMin":580.0,"priceDefault":950.0,"priceMax":1500.0,"note":""},{"id":"klempir_002","name":"Výměna asfaltových pásů kompletně (2 vrstvy)","category":"Střechy","unit":"m²","priceMin":850.0,"priceDefault":1250.0,"priceMax":1850.0,"note":"Bez zateplení"},{"id":"klempir_003","name":"Výměna folie EPDM/PVC ploché střechy","category":"Střechy","unit":"m²","priceMin":1200.0,"priceDefault":1850.0,"priceMax":2800.0,"note":""},{"id":"klempir_004","name":"Tepelná izolace ploché střechy (XPS 100 mm)","category":"Střechy","unit":"m²","priceMin":580.0,"priceDefault":850.0,"priceMax":1250.0,"note":""},{"id":"klempir_005","name":"Výměna pozinkovaného žlabu","category":"Střechy","unit":"bm","priceMin":850.0,"priceDefault":1450.0,"priceMax":2200.0,"note":""},{"id":"klempir_006","name":"Výměna měděného žlabu","category":"Střechy","unit":"bm","priceMin":1850.0,"priceDefault":2800.0,"priceMax":4200.0,"note":""},{"id":"klempir_007","name":"Výměna svodu dešťové vody","category":"Střechy","unit":"bm","priceMin":480.0,"priceDefault":850.0,"priceMax":1450.0,"note":""},{"id":"klempir_008","name":"Výměna oplechování parapetu","category":"Klempířské práce","unit":"bm","priceMin":580.0,"priceDefault":950.0,"priceMax":1500.0,"note":""},{"id":"klempir_009","name":"Výměna oplechování atiky","category":"Klempířské práce","unit":"bm","priceMin":850.0,"priceDefault":1450.0,"priceMax":2200.0,"note":""},{"id":"klempir_010","name":"Výměna komínového oplechování","category":"Klempířské práce","unit":"ks","priceMin":4500.0,"priceDefault":7500.0,"priceMax":12500.0,"note":""},{"id":"klempir_011","name":"Zateplení fasády EPS 100 mm","category":"Tepelné izolace","unit":"m²","priceMin":980.0,"priceDefault":1450.0,"priceMax":2200.0,"note":"Včetně omítky"},{"id":"klempir_012","name":"Zateplení fasády minerální vata 100 mm","category":"Tepelné izolace","unit":"m²","priceMin":1200.0,"priceDefault":1850.0,"priceMax":2800.0,"note":""},{"id":"klempir_013","name":"Zateplení stropu - foukání celulóza","category":"Tepelné izolace","unit":"m²","priceMin":280.0,"priceDefault":420.0,"priceMax":650.0,"note":"200 mm vrstva"},{"id":"klempir_014","name":"Akustická izolace mezistropu","category":"Tepelné izolace","unit":"m²","priceMin":580.0,"priceDefault":850.0,"priceMax":1450.0,"note":""}]},"plyn":{"name":"Plynové instalace","icon":"🔥","items":[{"id":"plyn_001","name":"Výměna plynového potrubí ocelové ⌀ 1/2\"-1\"","category":"Plynovodní rozvody","unit":"bm","priceMin":1450.0,"priceDefault":2200.0,"priceMax":3200.0,"note":"Včetně tlakové zkoušky"},{"id":"plyn_002","name":"Výměna plynového potrubí měděné ⌀ 15-28 mm","category":"Plynovodní rozvody","unit":"bm","priceMin":1850.0,"priceDefault":2800.0,"priceMax":4200.0,"note":""},{"id":"plyn_003","name":"Výměna kulového kohoutu plynového","category":"Plynovodní rozvody","unit":"ks","priceMin":1450.0,"priceDefault":2400.0,"priceMax":4200.0,"note":""},{"id":"plyn_004","name":"Výměna plynového kotle závěsného (24-35 kW)","category":"Plynový kotel závěsný (24 kW)","unit":"ks","priceMin":45000.0,"priceDefault":75000.0,"priceMax":125000.0,"note":"Vč. instalace"},{"id":"plyn_005","name":"Servis plynového kotle - roční","category":"Plynový kotel závěsný (24 kW)","unit":"ks","priceMin":1850.0,"priceDefault":2800.0,"priceMax":4500.0,"note":"Včetně dokumentace"},{"id":"plyn_006","name":"Výměna oběhového čerpadla","category":"Plynový kotel závěsný (24 kW)","unit":"ks","priceMin":4500.0,"priceDefault":7500.0,"priceMax":12500.0,"note":""},{"id":"plyn_007","name":"Výměna expanzní nádoby","category":"Plynový kotel závěsný (24 kW)","unit":"ks","priceMin":2400.0,"priceDefault":4500.0,"priceMax":7500.0,"note":""},{"id":"plyn_008","name":"Revize plynovodu komplet (do 100 m²)","category":"Revize plynu","unit":"kpl","priceMin":4500.0,"priceDefault":6500.0,"priceMax":9500.0,"note":""},{"id":"plyn_009","name":"Tlaková zkouška plynovodu","category":"Revize plynu","unit":"kpl","priceMin":2400.0,"priceDefault":3800.0,"priceMax":5500.0,"note":""}]},"pbz":{"name":"PBZ - pozar","icon":"🚨","items":[{"id":"pbz_001","name":"Výměna automatického hlásiče požáru","category":"Elektronický požární systém (EPS)","unit":"ks","priceMin":1450.0,"priceDefault":2400.0,"priceMax":4200.0,"note":"Včetně programování"},{"id":"pbz_002","name":"Výměna tlačítkového hlásiče","category":"Elektronický požární systém (EPS)","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":""},{"id":"pbz_003","name":"Výměna sirény vnitřní","category":"Elektronický požární systém (EPS)","unit":"ks","priceMin":1450.0,"priceDefault":2400.0,"priceMax":4200.0,"note":""},{"id":"pbz_004","name":"Servis EPS ústředny - roční","category":"Elektronický požární systém (EPS)","unit":"ks","priceMin":8500.0,"priceDefault":14500.0,"priceMax":28000.0,"note":"Dle velikosti"},{"id":"pbz_005","name":"Revize EPS celého systému","category":"Elektronický požární systém (EPS)","unit":"kpl","priceMin":14500.0,"priceDefault":28000.0,"priceMax":55000.0,"note":"Vč. protokolu"},{"id":"pbz_006","name":"Výměna sprinklerové hlavice","category":"Stabilní hasicí zařízení (sprinklery)","unit":"ks","priceMin":850.0,"priceDefault":1450.0,"priceMax":2400.0,"note":""},{"id":"pbz_007","name":"Tlaková zkouška sprinklerového systému","category":"Stabilní hasicí zařízení (sprinklery)","unit":"kpl","priceMin":12500.0,"priceDefault":22000.0,"priceMax":45000.0,"note":""},{"id":"pbz_008","name":"Servis SHZ - roční","category":"Stabilní hasicí zařízení (sprinklery)","unit":"kpl","priceMin":18500.0,"priceDefault":35000.0,"priceMax":65000.0,"note":""},{"id":"pbz_009","name":"Kontrola hasicího přístroje (roční)","category":"Hasicí přístroje","unit":"ks","priceMin":180.0,"priceDefault":280.0,"priceMax":450.0,"note":"Včetně razítka"},{"id":"pbz_010","name":"Tlaková zkouška hasicího přístroje (5 let)","category":"Hasicí přístroje","unit":"ks","priceMin":350.0,"priceDefault":580.0,"priceMax":950.0,"note":""},{"id":"pbz_011","name":"Výměna hasicího přístroje P6 (6 kg)","category":"Hasicí přístroje","unit":"ks","priceMin":1450.0,"priceDefault":2200.0,"priceMax":3500.0,"note":""},{"id":"pbz_012","name":"Výměna kouřového ventilátoru","category":"Zařízení pro odvod kouře (ZOTK)","unit":"ks","priceMin":28000.0,"priceDefault":48000.0,"priceMax":85000.0,"note":""},{"id":"pbz_013","name":"Servis kouřové klapky","category":"Zařízení pro odvod kouře (ZOTK)","unit":"ks","priceMin":1850.0,"priceDefault":3200.0,"priceMax":5500.0,"note":""},{"id":"pbz_014","name":"Funkční zkouška ZOTK","category":"Zařízení pro odvod kouře (ZOTK)","unit":"kpl","priceMin":8500.0,"priceDefault":14500.0,"priceMax":28000.0,"note":""}]}};
+
+var currentCatalog = null; // Cache ceníku z Firestore
+
+async function loadCatalog(){
+  if (currentCatalog) return currentCatalog;
+  // Při prvním načtení použij DEFAULT okamžitě, pak na pozadí načti z Firestore
+  currentCatalog = DEFAULT_CATALOG;
+  // Pozadí: aktualizuj z Firestore (neblokuje UI)
+  (async function(){
+    try {
+      var doc = await db.collection('catalog').doc('main').get();
+      if (doc.exists) {
+        currentCatalog = doc.data().data || DEFAULT_CATALOG;
+      } else {
+        await db.collection('catalog').doc('main').set({
+          data: DEFAULT_CATALOG,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    } catch(e) { console.warn('Catalog load:', e.message); }
+  })();
+  return currentCatalog;
+}
+
+async function saveCatalog(){
+  if (!currentCatalog) return;
+  try {
+    await db.collection('catalog').doc('main').set({
+      data: currentCatalog,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    console.warn('Catalog save error:', e.message);
+    toast('⚠️ Chyba při ukládání ceníku');
+  }
+}
+
+function openBudgetScreen(){
+  if (!currentUser) { toast('⚠️ Nejste přihlášen'); return; }
+  if (!isAdmin()) { toast('⚠️ Pouze admin'); return; }
+  
+  var screen = document.getElementById('budget-screen');
+  if (!screen) {
+    screen = document.createElement('div');
+    screen.id = 'budget-screen';
+    document.body.appendChild(screen);
+  }
+  
+  screen.style.cssText = 'background:#f5f7fa;min-height:100vh;padding:24px;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow-y:auto;display:block';
+  screen.innerHTML = '<div style="max-width:1200px;margin:0 auto">' +
+    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">' +
+      '<div style="font-size:24px">💰</div>' +
+      '<div style="flex:1">' +
+        '<div style="font-size:20px;font-weight:700;color:#0f172a">Rozpočty a ceník</div>' +
+        '<div style="font-size:12px;color:#64748b">Centrální ceník oprav + per-audit rozpočty</div>' +
+      '</div>' +
+      '<button class="btn btn-g" onclick="closeBudgetScreen()" style="font-size:11px">← Zpět</button>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid #e2e8f0">' +
+      '<button id="tab-catalog" onclick="switchBudgetTab(\'catalog\')" style="padding:10px 20px;border:0;background:#2563eb;color:#fff;border-radius:6px 6px 0 0;cursor:pointer;font-weight:600">📋 Ceník (148 položek)</button>' +
+      '<button id="tab-budgets" onclick="switchBudgetTab(\'budgets\')" style="padding:10px 20px;border:0;background:#e2e8f0;color:#475569;border-radius:6px 6px 0 0;cursor:pointer;font-weight:600">📊 Rozpočty auditů</button>' +
+    '</div>' +
+    '<div id="budget-content"></div>' +
+  '</div>';
+  
+  switchBudgetTab('catalog');
+}
+
+function closeBudgetScreen(){
+  var screen = document.getElementById('budget-screen');
+  if (screen && screen.parentNode) {
+    screen.parentNode.removeChild(screen);
+  }
+  // Zajisti že úvodní obrazovka je vidět
+  var am = document.getElementById('audit-manager');
+  am.classList.remove('hidden');
+  am.style.display = 'flex';
+  // Skryj editor pokud byl otevřen
+  document.getElementById('app').style.display = 'none';
+}
+
+async function switchBudgetTab(tab){
+  await loadCatalog();
+  
+  // Style tabs
+  document.getElementById('tab-catalog').style.background = tab==='catalog' ? '#2563eb' : '#e2e8f0';
+  document.getElementById('tab-catalog').style.color = tab==='catalog' ? '#fff' : '#475569';
+  document.getElementById('tab-budgets').style.background = tab==='budgets' ? '#2563eb' : '#e2e8f0';
+  document.getElementById('tab-budgets').style.color = tab==='budgets' ? '#fff' : '#475569';
+  
+  if (tab === 'catalog') renderCatalogTab();
+  else renderBudgetsTab();
+}
+
+function renderCatalogTab(){
+  var content = document.getElementById('budget-content');
+  var html = '';
+  
+  Object.keys(currentCatalog).forEach(function(profCode){
+    var prof = currentCatalog[profCode];
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:16px;overflow:hidden">';
+    html += '<div onclick="toggleProfession(\''+profCode+'\')" style="padding:14px 18px;background:#f8fafc;cursor:pointer;display:flex;align-items:center;gap:10px;font-weight:700;color:#0f172a">';
+    html += '<span style="font-size:20px">'+prof.icon+'</span>';
+    html += '<span style="flex:1">'+esc(prof.name)+'</span>';
+    html += '<span style="font-size:12px;color:#64748b;font-weight:500">'+prof.items.length+' položek</span>';
+    html += '<span id="arrow-'+profCode+'" style="font-size:14px;color:#94a3b8">▼</span>';
+    html += '</div>';
+    html += '<div id="prof-'+profCode+'" style="display:none">';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += '<thead><tr style="background:#f1f5f9"><th style="padding:8px;text-align:left">Položka</th><th style="padding:8px;text-align:center;width:50px">Jedn.</th><th style="padding:8px;text-align:right;width:90px">MIN</th><th style="padding:8px;text-align:right;width:90px">Doporučená</th><th style="padding:8px;text-align:right;width:90px">MAX</th><th style="padding:8px;text-align:center;width:40px"></th></tr></thead><tbody>';
+    
+    var lastCategory = null;
+    prof.items.forEach(function(item){
+      if (item.category && item.category !== lastCategory){
+        html += '<tr style="background:#eef2ff"><td colspan="6" style="padding:6px 12px;font-weight:600;color:#3730a3;font-size:11px">📁 '+esc(item.category)+'</td></tr>';
+        lastCategory = item.category;
+      }
+      html += '<tr style="border-top:1px solid #f1f5f9">';
+      html += '<td style="padding:6px 8px">'+esc(item.name)+(item.note?'<div style="font-size:10px;color:#94a3b8">'+esc(item.note)+'</div>':'')+'</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:#64748b">'+esc(item.unit)+'</td>';
+      html += '<td style="padding:4px 8px;text-align:right"><input type="number" value="'+item.priceMin+'" min="0" style="width:80px;padding:4px 6px;border:1px solid #dce4ec;border-radius:4px;font-size:11px;text-align:right" onchange="updatePrice(\''+profCode+'\',\''+item.id+'\',\'priceMin\',this.value)"></td>';
+      html += '<td style="padding:4px 8px;text-align:right"><input type="number" value="'+item.priceDefault+'" min="0" style="width:80px;padding:4px 6px;border:1px solid #2563eb;border-radius:4px;font-size:11px;text-align:right;font-weight:600" onchange="updatePrice(\''+profCode+'\',\''+item.id+'\',\'priceDefault\',this.value)"></td>';
+      html += '<td style="padding:4px 8px;text-align:right"><input type="number" value="'+item.priceMax+'" min="0" style="width:80px;padding:4px 6px;border:1px solid #dce4ec;border-radius:4px;font-size:11px;text-align:right" onchange="updatePrice(\''+profCode+'\',\''+item.id+'\',\'priceMax\',this.value)"></td>';
+      html += '<td style="padding:4px 8px;text-align:center"><button onclick="deleteCatalogItem(\''+profCode+'\',\''+item.id+'\')" style="background:#fee2e2;color:#991b1b;border:0;padding:2px 6px;border-radius:4px;cursor:pointer;font-size:10px" title="Smazat">×</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    html += '<div style="padding:10px;background:#fafbfc;text-align:center"><button onclick="addCatalogItem(\''+profCode+'\')" style="background:#2563eb;color:#fff;border:0;padding:6px 14px;border-radius:5px;cursor:pointer;font-size:11px">+ Přidat položku</button></div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  
+  html += '<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;font-size:11px;color:#92400e;line-height:1.6;margin-top:16px">⚠️ <strong>Ceny bez DPH.</strong> Modře orámovaná = doporučená cena (používá se pro výpočet rozpočtu).</div>';
+  
+  content.innerHTML = html;
+}
+
+function toggleProfession(code){
+  var div = document.getElementById('prof-'+code);
+  var arrow = document.getElementById('arrow-'+code);
+  if (div.style.display === 'none'){
+    div.style.display = 'block';
+    arrow.textContent = '▲';
+  } else {
+    div.style.display = 'none';
+    arrow.textContent = '▼';
+  }
+}
+
+async function updatePrice(profCode, itemId, field, value){
+  var item = currentCatalog[profCode].items.find(function(i){return i.id===itemId;});
+  if (!item) return;
+  item[field] = Number(value)||0;
+  await saveCatalog();
+}
+
+async function addCatalogItem(profCode){
+  var name = prompt('Název položky:');
+  if (!name) return;
+  var unit = prompt('Jednotka (ks, m, m², h, ...):', 'ks') || 'ks';
+  var price = Number(prompt('Doporučená cena (Kč):', '0'))||0;
+  var newId = profCode+'_custom_'+Date.now();
+  currentCatalog[profCode].items.push({
+    id: newId, name: name, category: 'Vlastní',
+    unit: unit, priceMin: Math.round(price*0.7), priceDefault: price, priceMax: Math.round(price*1.5), note: ''
+  });
+  await saveCatalog();
+  renderCatalogTab();
+}
+
+async function deleteCatalogItem(profCode, itemId){
+  if (!confirm('Smazat tuto položku z ceníku?')) return;
+  currentCatalog[profCode].items = currentCatalog[profCode].items.filter(function(i){return i.id!==itemId;});
+  await saveCatalog();
+  renderCatalogTab();
+}
+
+function renderBudgetsTab(){
+  var content = document.getElementById('budget-content');
+  if (!auditsList || auditsList.length === 0){
+    content.innerHTML = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:30px;text-align:center;color:#64748b">Žádné audity.</div>';
+    return;
+  }
+  
+  var html = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
+  html += '<thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">';
+  html += '<th style="padding:12px 16px;text-align:left">Audit</th>';
+  html += '<th style="padding:12px 16px;text-align:right;width:120px">Vad celkem</th>';
+  html += '<th style="padding:12px 16px;text-align:right;width:150px">Položek</th>';
+  html += '<th style="padding:12px 16px;text-align:right;width:180px">Rozpočet Kč</th>';
+  html += '</tr></thead><tbody>';
+  
+  auditsList.forEach(function(audit){
+    var budgetTotal = calculateBudgetTotal(audit);
+    html += '<tr style="border-top:1px solid #f1f5f9">';
+    html += '<td style="padding:12px 16px;font-weight:600">'+esc(audit.objekt||'(bez názvu)')+'</td>';
+    html += '<td style="padding:12px 16px;text-align:right">'+(audit.defectCount||0)+'</td>';
+    html += '<td style="padding:12px 16px;text-align:right">'+budgetTotal.itemCount+'</td>';
+    html += '<td style="padding:12px 16px;text-align:right;font-weight:700;color:#2563eb">'+budgetTotal.total.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:8px;padding:12px 16px;font-size:12px;color:#1e3a8a;line-height:1.6;margin-top:16px">💡 Rozpočet se buduje přidáváním položek k jednotlivým vadám přímo v auditu. V detailu vady najdete tlačítko <strong>+ Položka z ceníku</strong>.</div>';
+  
+  content.innerHTML = html;
+}
+
+function calculateBudgetTotal(audit){
+  // audit.budget je struktura { defectId: [{itemId, quantity, profCode}, ...] }
+  var budget = audit.budget || {};
+  var total = 0;
+  var itemCount = 0;
+  Object.keys(budget).forEach(function(defectId){
+    var items = budget[defectId] || [];
+    items.forEach(function(line){
+      var item = findCatalogItem(line.profCode, line.itemId);
+      if (item){
+        total += (item.priceDefault || 0) * (line.quantity || 1);
+        itemCount++;
+      }
+    });
+  });
+  return {total: total, itemCount: itemCount};
+}
+
+function findCatalogItem(profCode, itemId){
+  if (!currentCatalog || !currentCatalog[profCode]) return null;
+  return currentCatalog[profCode].items.find(function(i){return i.id===itemId;});
+}
+
+// ============================================================
+// CATALOG PICKER - výběr položek z ceníku pro vady
+// ============================================================
+function getDefectBudgetItems(defectId){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) return [];
+  if (!audit.budget) audit.budget = {};
+  return audit.budget[defectId] || [];
+}
+
+function setDefectBudgetItems(defectId, items){
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) return;
+  if (!audit.budget) audit.budget = {};
+  if (items.length === 0) {
+    delete audit.budget[defectId];
+  } else {
+    audit.budget[defectId] = items;
+  }
+  saveBudget(audit);
+}
+
+async function saveBudget(audit){
+  try {
+    await db.collection('audits').doc(audit.id).update({
+      budget: audit.budget,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { console.warn('Budget save error:', e.message); }
+}
+
+async function renderDefectBudgetItems(){
+  await loadCatalog();
+  var box = document.getElementById('p-budget-items');
+  if (!box) return;
+  if (!aId) { box.innerHTML = 'Žádné položky.'; return; }
+  
+  var items = getDefectBudgetItems(aId);
+  if (items.length === 0){
+    box.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:8px">Žádné položky. Klikněte na "+ Přidat z ceníku"</div>';
+    return;
+  }
+  
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:11px">';
+  var total = 0;
+  items.forEach(function(line, idx){
+    var item = findCatalogItem(line.profCode, line.itemId);
+    if (!item) {
+      html += '<tr><td colspan="4" style="color:#dc2626;padding:4px">⚠️ Položka nenalezena</td></tr>';
+      return;
+    }
+    var subtotal = item.priceDefault * (line.quantity||1);
+    total += subtotal;
+    html += '<tr style="border-bottom:1px solid #e2e8f0">';
+    html += '<td style="padding:6px 4px"><div style="font-weight:600;color:#0f172a">'+esc(item.name)+'</div><div style="font-size:10px;color:#64748b">'+currentCatalog[line.profCode].icon+' '+currentCatalog[line.profCode].name+'</div></td>';
+    html += '<td style="padding:6px 4px;text-align:center;white-space:nowrap"><input type="number" value="'+(line.quantity||1)+'" min="0.1" step="0.1" style="width:55px;padding:3px 5px;border:1px solid #dce4ec;border-radius:4px;text-align:right;font-size:11px" onchange="updateDefectItemQty('+idx+',this.value)"> '+esc(item.unit)+'</td>';
+    html += '<td style="padding:6px 4px;text-align:right;color:#64748b;white-space:nowrap">×'+item.priceDefault.toLocaleString('cs-CZ')+'</td>';
+    html += '<td style="padding:6px 4px;text-align:right;font-weight:700;color:#2563eb;white-space:nowrap">'+subtotal.toLocaleString('cs-CZ')+' Kč</td>';
+    html += '<td style="padding:6px 4px;text-align:center;width:30px"><button onclick="removeDefectItem('+idx+')" style="background:#fee2e2;color:#991b1b;border:0;padding:2px 6px;border-radius:4px;cursor:pointer;font-size:10px" title="Smazat">×</button></td>';
+    html += '</tr>';
+  });
+  html += '<tr style="background:#dbeafe"><td colspan="3" style="padding:8px;text-align:right;font-weight:700">Celkem za vadu:</td><td style="padding:8px;text-align:right;font-weight:700;color:#1e40af;font-size:13px">'+total.toLocaleString('cs-CZ')+' Kč</td><td></td></tr>';
+  html += '</table>';
+  
+  box.innerHTML = html;
+}
+
+function updateDefectItemQty(idx, value){
+  var items = getDefectBudgetItems(aId);
+  items[idx].quantity = Number(value)||1;
+  setDefectBudgetItems(aId, items);
+  renderDefectBudgetItems();
+}
+
+function removeDefectItem(idx){
+  if (!confirm('Odebrat tuto položku z vady?')) return;
+  var items = getDefectBudgetItems(aId);
+  items.splice(idx, 1);
+  setDefectBudgetItems(aId, items);
+  renderDefectBudgetItems();
+}
+
+async function openCatalogPicker(){
+  if (!aId) { toast('Vyberte nejdřív vadu'); return; }
+  await loadCatalog();
+  
+  var modal = document.getElementById('catalog-picker-modal');
+  if (modal) modal.remove();
+  
+  modal = document.createElement('div');
+  modal.id = 'catalog-picker-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.onclick = function(e){ if(e.target===modal) closeCatalogPicker(); };
+  
+  var html = '<div style="background:#fff;border-radius:12px;max-width:800px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden">';
+  html += '<div style="padding:16px 20px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:12px">';
+  html += '<div style="font-size:18px;font-weight:700;color:#0f172a;flex:1">💰 Vybrat položku z ceníku</div>';
+  html += '<input type="text" id="catalog-search" placeholder="🔍 Hledat položku..." oninput="filterCatalogPicker(this.value)" style="padding:8px 12px;border:1px solid #dce4ec;border-radius:6px;width:240px;font-size:13px">';
+  html += '<button onclick="closeCatalogPicker()" style="background:#f1f5f9;border:0;padding:8px 14px;border-radius:6px;cursor:pointer">✕</button>';
+  html += '</div>';
+  html += '<div id="catalog-picker-list" style="overflow-y:auto;padding:12px"></div>';
+  html += '</div>';
+  
+  modal.innerHTML = html;
+  document.body.appendChild(modal);
+  renderCatalogPickerList('');
+}
+
+function closeCatalogPicker(){
+  var modal = document.getElementById('catalog-picker-modal');
+  if (modal) modal.remove();
+}
+
+function filterCatalogPicker(query){
+  renderCatalogPickerList(query.toLowerCase().trim());
+}
+
+function renderCatalogPickerList(query){
+  var list = document.getElementById('catalog-picker-list');
+  if (!list) return;
+  
+  var html = '';
+  Object.keys(currentCatalog).forEach(function(profCode){
+    var prof = currentCatalog[profCode];
+    var matched = prof.items.filter(function(item){
+      if (!query) return true;
+      return item.name.toLowerCase().indexOf(query) >= 0 ||
+             (item.category && item.category.toLowerCase().indexOf(query) >= 0);
+    });
+    if (matched.length === 0) return;
+    
+    html += '<div style="margin-bottom:12px">';
+    html += '<div style="font-weight:700;color:#0f172a;padding:6px 8px;background:#f1f5f9;border-radius:6px;font-size:13px">'+prof.icon+' '+esc(prof.name)+' ('+matched.length+')</div>';
+    
+    matched.forEach(function(item){
+      var onclickStr = "addItemToDefect('" + profCode + "','" + item.id + "')";
+      html += '<div onclick="' + onclickStr + '" style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer;font-size:12px">';
+      html += '<div style="flex:1"><div style="font-weight:600;color:#0f172a">'+esc(item.name)+'</div><div style="font-size:10px;color:#94a3b8">'+esc(item.category||'')+(item.note?' • '+esc(item.note):'')+'</div></div>';
+      html += '<div style="text-align:right;white-space:nowrap"><div style="font-weight:700;color:#2563eb">'+item.priceDefault.toLocaleString('cs-CZ')+' Kč/'+esc(item.unit)+'</div><div style="font-size:10px;color:#94a3b8">+ Přidat</div></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  
+  if (!html) html = '<div style="text-align:center;color:#94a3b8;padding:30px">Žádné položky nenalezeny</div>';
+  list.innerHTML = html;
+}
+
+function addItemToDefect(profCode, itemId){
+  if (!aId) { toast('Není vybraná vada'); return; }
+  var items = getDefectBudgetItems(aId);
+  // Zkontroluj zda už není v seznamu - pokud ano, zvyš množství
+  var existing = items.find(function(l){return l.profCode===profCode && l.itemId===itemId;});
+  if (existing){
+    existing.quantity = (existing.quantity||1) + 1;
+    toast('+1 množství');
+  } else {
+    items.push({profCode:profCode, itemId:itemId, quantity:1});
+    var item = findCatalogItem(profCode, itemId);
+    toast('✓ Přidáno: '+(item?item.name.slice(0,30):''));
+  }
+  setDefectBudgetItems(aId, items);
+  renderDefectBudgetItems();
+  closeCatalogPicker();
+}
+
+
 
 async function saveTimerToFirebase(audit){
   try {
@@ -3426,6 +4233,7 @@ function openPanel(id){
   var cat=catByKey(d.type);
   document.getElementById('pbdg').innerHTML='<span class="bdg" style="background:'+cat.bg+';color:'+cat.color+'">'+esc(cat.label)+'</span>';
   renderPPh(d);
+  renderDefectBudgetItems();
   document.getElementById('panel').classList.add('open');
   if(floor().pdfPages.length>1&&d.page!==floor().curPage)switchPage(d.page);
   renderAll();
