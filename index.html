@@ -832,7 +832,6 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
         <th>Jméno</th>
         <th>Role</th>
         <th>PIN</th>
-        <th>Sazba</th>
         <th>Přidáno</th>
         <th></th>
       </tr></thead>
@@ -856,10 +855,6 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
             <option value="reader">Čtenář</option>
             <option value="admin">Admin</option>
           </select>
-        </div>
-        <div>
-          <div class="login-lbl" style="margin-bottom:5px">Hod. sazba (Kč)</div>
-          <input class="fi" id="new-user-rate" type="number" placeholder="850" min="0">
         </div>
         <button class="btn btn-b" onclick="addUser()" style="height:34px">Přidat</button>
       </div>
@@ -905,7 +900,6 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
         <div class="am-sync-dot" id="am-sync-dot"></div>
         <span id="am-sync-txt">Načítám...</span>
       </div>
-      <button class="btn btn-g admin-only" onclick="openCostsScreen()" style="font-size:11px">💼 Náklady</button>
       <button class="btn btn-g admin-only" onclick="openUsers()" style="font-size:11px">👥 Uživatelé</button>
       <button id="pwa-install-btn" onclick="installPWA()" style="display:none;align-items:center;gap:6px;padding:7px 12px;background:#0d9488;border:none;color:#fff;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer">
         📲 Přidat na plochu
@@ -1013,9 +1007,6 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
     <span id="sync-txt">Načítám...</span>
   </div>
   <button class="btn btn-g" onclick="openListModal()">📋 Vady</button>
-  <button id="btn-timer" class="btn" onclick="toggleTimer()" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-weight:700">▶ Zahájit</button>
-  <span id="timer-display" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#065f46;padding:0 6px;display:none">00:00:00</span>
-  <button class="btn btn-g" onclick="openTimerHistory()" title="Historie kontrol">🕐 Historie</button>
   <button class="btn btn-b admin-only" onclick="openExportDlg()">📄 Export</button>
   <button class="btn btn-grn admin-only" onclick="doArchive()">📦 Archiv ZIP</button>
   <button id="btn-finish" class="btn admin-only" onclick="toggleAuditDone()" style="background:#f0f7ee;color:#2d6b26;border:1px solid #c8e0c4;font-weight:700">✓ Dokončit audit</button>
@@ -1540,12 +1531,11 @@ async function loadUsers() {
         '<td style="font-weight:600">'+esc(u.name)+'</td>'+
         '<td><span class="us-role '+roleCls+'">'+roleLbl+'</span></td>'+
         '<td><span style="font-family:\'JetBrains Mono\',monospace;background:#f0f4f8;padding:2px 8px;border-radius:4px;font-size:11px">'+u.pin+'</span></td>'+
-        '<td><input type="number" value="'+(u.hourlyRate||0)+'" min="0" style="width:80px;padding:4px 6px;border:1px solid #dce4ec;border-radius:4px;font-size:11px;text-align:right" onblur="updateUserRate(\''+doc.id+'\',this.value)"> Kč/h</td>'+
         '<td style="color:#a0afbe;font-size:11px">'+(u.addedAt||'—')+'</td>'+
         '<td><button class="btn btn-r" style="font-size:10px;padding:4px 8px" onclick="deleteUser(\''+doc.id+'\',\''+esc(u.name)+'\')">Smazat</button></td>'+
         '</tr>';
     });
-    if (!rows) rows = '<tr><td colspan="6" style="text-align:center;color:#a0afbe;padding:20px">Žádní uživatelé</td></tr>';
+    if (!rows) rows = '<tr><td colspan="5" style="text-align:center;color:#a0afbe;padding:20px">Žádní uživatelé</td></tr>';
     document.getElementById('users-tbody').innerHTML = rows;
   } catch(e) { toast('Chyba načítání uživatelů'); }
 }
@@ -1554,28 +1544,18 @@ async function addUser() {
   var name = document.getElementById('new-user-name').value.trim();
   var pin  = document.getElementById('new-user-pin').value.trim();
   var role = document.getElementById('new-user-role').value;
-  var rate = parseFloat(document.getElementById('new-user-rate').value)||0;
   if (!name || !pin) { toast('Vyplňte jméno a PIN'); return; }
   if (pin.length < 3) { toast('PIN musí mít alespoň 3 znaky'); return; }
   try {
     await db.collection('users').add({
-      name: name, pin: pin, role: role, hourlyRate: rate,
+      name: name, pin: pin, role: role,
       addedAt: new Date().toLocaleDateString('cs-CZ'),
       addedBy: currentUser ? currentUser.name : 'system'
     });
     document.getElementById('new-user-name').value = '';
     document.getElementById('new-user-pin').value = '';
-    document.getElementById('new-user-rate').value = '';
     loadUsers();
     toast('✓ Uživatel '+name+' přidán');
-  } catch(e) { toast('Chyba: '+e.message); }
-}
-
-async function updateUserRate(id, newRate) {
-  var rate = parseFloat(newRate)||0;
-  try {
-    await db.collection('users').doc(id).update({ hourlyRate: rate });
-    toast('✓ Sazba uložena: '+rate+' Kč/h');
   } catch(e) { toast('Chyba: '+e.message); }
 }
 
@@ -1597,9 +1577,7 @@ async function openAssignModal(auditIdLocal) {
   if (!isAdmin()) return;
   assignTargetAuditId = auditIdLocal;
   var audit = auditsList.find(function(a){return a.id===auditIdLocal;});
-  // Pole přiřazených (může být víc auditorů)
-  var assigned = audit && audit.assignedAuditors ? audit.assignedAuditors : 
-                 (audit && audit.auditor ? [audit.auditor] : []);
+  assignSelectedName = audit ? (audit.auditor||'') : '';
   document.getElementById('assign-audit-name').textContent = audit ? audit.objekt : '';
   document.getElementById('assign-modal').classList.remove('hidden');
   // Načti uživatele
@@ -1607,19 +1585,23 @@ async function openAssignModal(auditIdLocal) {
   listEl.innerHTML = '<div style="padding:30px;text-align:center;color:#a0afbe">Načítám…</div>';
   try {
     var snap = await db.collection('users').orderBy('name').get();
-    var rows = '<div style="padding:8px 22px;color:#6b7f92;font-size:11px;font-style:italic">Můžete vybrat víc auditorů</div>';
+    var rows = '';
+    // Možnost "Nepřiřazeno"
+    rows += '<label class="assign-row" style="display:flex;align-items:center;padding:14px 22px;cursor:pointer;border-bottom:1px solid #f0f4f8;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.05);min-height:48px">'+
+      '<input type="radio" name="assignUser" value="" '+(!assignSelectedName?'checked':'')+' style="width:20px;height:20px;margin-right:12px;flex-shrink:0">'+
+      '<span style="color:#a0afbe;font-style:italic">— Nepřiřazeno —</span>'+
+      '</label>';
     snap.forEach(function(doc){
       var u = doc.data();
-      if (u.role !== 'auditor' && u.role !== 'admin') return;
-      var isSel = assigned.indexOf(u.name) >= 0;
+      if (u.role !== 'auditor' && u.role !== 'admin') return; // jen auditoři + admin
+      var sel = (u.name === assignSelectedName) ? 'checked' : '';
       var roleBadge = u.role === 'admin' ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px">Admin</span>' : '';
-      var rateInfo = u.hourlyRate ? '<span style="color:#6b7f92;font-size:11px;margin-left:auto">'+u.hourlyRate+' Kč/h</span>' : '';
       rows += '<label class="assign-row" style="display:flex;align-items:center;padding:14px 22px;cursor:pointer;border-bottom:1px solid #f0f4f8;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.05);min-height:48px">'+
-        '<input type="checkbox" name="assignUser" value="'+esc(u.name)+'" '+(isSel?'checked':'')+' style="width:20px;height:20px;margin-right:12px;flex-shrink:0">'+
-        '<span style="font-weight:600">'+esc(u.name)+'</span>'+roleBadge+rateInfo+
+        '<input type="radio" name="assignUser" value="'+esc(u.name)+'" '+sel+' style="width:20px;height:20px;margin-right:12px;flex-shrink:0">'+
+        '<span style="font-weight:600">'+esc(u.name)+'</span>'+roleBadge+
         '</label>';
     });
-    listEl.innerHTML = rows;
+    listEl.innerHTML = rows || '<div style="padding:30px;text-align:center;color:#a0afbe">Žádní auditoři</div>';
   } catch(e) {
     listEl.innerHTML = '<div style="padding:30px;text-align:center;color:#ef4444">Chyba: '+e.message+'</div>';
   }
@@ -1632,16 +1614,15 @@ function closeAssignModal() {
 
 async function saveAssignment() {
   if (!assignTargetAuditId) return;
-  var checkboxes = document.querySelectorAll('input[name="assignUser"]');
-  var selected = [];
-  checkboxes.forEach(function(r){ if (r.checked) selected.push(r.value); });
+  var radios = document.querySelectorAll('input[name="assignUser"]');
+  var selected = '';
+  radios.forEach(function(r){ if (r.checked) selected = r.value; });
   try {
     await db.collection('audits').doc(assignTargetAuditId).update({
-      assignedAuditors: selected,
-      auditor: selected[0] || '', // pro zpětnou kompatibilitu
+      auditor: selected,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    toast(selected.length ? '✓ Přiřazeno: '+selected.join(', ') : '✓ Přiřazení zrušeno');
+    toast(selected ? '✓ Přiřazeno: '+selected : '✓ Přiřazení zrušeno');
     closeAssignModal();
     loadAuditsList();
   } catch(e) {
@@ -2123,16 +2104,10 @@ document.getElementById('app').style.display = 'none';
     try {
       currentUser = JSON.parse(cached);
       document.getElementById('login-screen').classList.add('hidden');
-      if (sharedId) {
-        document.getElementById('app').style.display = 'flex';
-        applyRoleUI();
-        openAudit(sharedId);
-      } else {
-        document.getElementById('app').style.display = 'none';
-        document.getElementById('audit-manager').classList.remove('hidden');
-        applyRoleUI();
-        loadAuditsList();
-      }
+      document.getElementById('app').style.display = 'flex';
+      applyRoleUI();
+      if (sharedId) { openAudit(sharedId); }
+      else { loadAuditsList(); }
     } catch(e) {
       showLoginScreen();
     }
@@ -2163,16 +2138,10 @@ function showLoginScreen() {
       currentUser = found;
       localStorage.setItem('techaudit_user', JSON.stringify(currentUser));
       document.getElementById('login-screen').classList.add('hidden');
-      if (sharedId) {
-        document.getElementById('app').style.display = 'flex';
-        applyRoleUI();
-        openAudit(sharedId);
-      } else {
-        document.getElementById('app').style.display = 'none';
-        document.getElementById('audit-manager').classList.remove('hidden');
-        applyRoleUI();
-        loadAuditsList();
-      }
+      document.getElementById('app').style.display = 'flex';
+      applyRoleUI();
+      if (sharedId) { openAudit(sharedId); }
+      else { loadAuditsList(); }
       toast('Vítejte, ' + currentUser.name + '!');
     } catch(e) {
       var cached2 = localStorage.getItem('techaudit_user');
@@ -2181,8 +2150,7 @@ function showLoginScreen() {
         if (u.name.toLowerCase() === name.toLowerCase() && u.pin === pin) {
           currentUser = u;
           document.getElementById('login-screen').classList.add('hidden');
-          document.getElementById('app').style.display = 'none';
-          document.getElementById('audit-manager').classList.remove('hidden');
+          document.getElementById('app').style.display = 'flex';
           applyRoleUI();
           loadAuditsList();
           toast('Přihlášen offline — ' + currentUser.name);
@@ -2486,19 +2454,12 @@ async function loadAuditsList() {
       // Admin vidí vše, Auditor vidí jen své přiřazené, Čtenář vidí jen dokončené
       if (currentUser) {
         if (currentUser.role === 'reader' && d.status !== 'done') return;
-        if (currentUser.role === 'auditor') {
-          var assigned = d.assignedAuditors || (d.auditor ? [d.auditor] : []);
-          if (assigned.indexOf(currentUser.name) < 0) return;
-        }
+        if (currentUser.role === 'auditor' && d.auditor !== currentUser.name) return;
       }
       auditsList.push({
         id: doc.id,
         objekt: d.objekt || 'Nepojmenovaný audit',
         auditor: d.auditor || '',
-        assignedAuditors: d.assignedAuditors || (d.auditor ? [d.auditor] : []),
-        sessions: d.sessions || [],
-        costs: d.costs || {car:{km:0,ratePerKm:12}, items:[]},
-        transportCosts: d.transportCosts || [],
         datum: d.datum || '',
         status: d.status || 'active',
         defectCount: d.floors ? d.floors.reduce(function(s,f){return s+f.defects.length;},0) : 0,
@@ -2643,453 +2604,6 @@ function openAudit(id) {
   // Nastav stav tlačítka
   var existing = auditsList.find(function(a){return a.id===id;});
   updateFinishBtn(existing ? existing.status : 'active');
-  // Obnov timer pokud nějaký běží
-  setTimeout(restoreTimerState, 500);
-}
-
-// ============================================================
-// TIMER - Měření času auditu
-// ============================================================
-var timerInterval = null;
-var timerStartTime = null;
-
-function toggleTimer(){
-  if (!auditId) { toast('⚠️ Otevřete nejdřív audit'); return; }
-  if (!currentUser) { toast('⚠️ Nejste přihlášen'); return; }
-  // Najdi aktivní session pro tohoto uživatele
-  var audit = auditsList.find(function(a){return a.id===auditId;});
-  if (!audit) { toast('⚠️ Audit nenalezen'); return; }
-  audit.sessions = audit.sessions || [];
-  var openSession = audit.sessions.find(function(s){ 
-    return s.auditor === currentUser.name && !s.end;
-  });
-  if (openSession) {
-    // STOP - ukončit aktivní session
-    openSession.end = Date.now();
-    openSession.duration = Math.floor((openSession.end - openSession.start)/1000);
-    stopTimerDisplay();
-    saveTimerToFirebase(audit);
-    toast('⏹ Kontrola ukončena. Čas: '+formatDuration(openSession.duration));
-  } else {
-    // START - nová session
-    var session = {
-      id: 't_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
-      auditor: currentUser.name,
-      start: Date.now(),
-      end: null,
-      duration: 0
-    };
-    audit.sessions.push(session);
-    startTimerDisplay(session.start);
-    saveTimerToFirebase(audit);
-    toast('▶ Kontrola zahájena');
-  }
-}
-
-function startTimerDisplay(startTs){
-  timerStartTime = startTs;
-  var btn = document.getElementById('btn-timer');
-  var disp = document.getElementById('timer-display');
-  if (!btn || !disp) return;
-  btn.innerHTML = '⏹ Ukončit';
-  btn.style.background = '#fef2f2';
-  btn.style.color = '#991b1b';
-  btn.style.borderColor = '#fecaca';
-  disp.style.display = 'inline-block';
-  updateTimerDisplay();
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = setInterval(updateTimerDisplay, 1000);
-}
-
-function stopTimerDisplay(){
-  if (timerInterval) clearInterval(timerInterval);
-  timerInterval = null;
-  timerStartTime = null;
-  var btn = document.getElementById('btn-timer');
-  var disp = document.getElementById('timer-display');
-  if (!btn || !disp) return;
-  btn.innerHTML = '▶ Zahájit';
-  btn.style.background = '#d1fae5';
-  btn.style.color = '#065f46';
-  btn.style.borderColor = '#6ee7b7';
-  disp.style.display = 'none';
-}
-
-function updateTimerDisplay(){
-  if (!timerStartTime) return;
-  var elapsed = Math.floor((Date.now() - timerStartTime)/1000);
-  var disp = document.getElementById('timer-display');
-  if (disp) disp.textContent = formatDuration(elapsed);
-}
-
-function formatDuration(seconds){
-  var h = Math.floor(seconds/3600);
-  var m = Math.floor((seconds%3600)/60);
-  var s = seconds%60;
-  return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
-}
-
-function openTimerHistory(){
-  if (!auditId) { toast('⚠️ Otevřete nejdřív audit'); return; }
-  var audit = auditsList.find(function(a){return a.id===auditId;});
-  if (!audit) { toast('⚠️ Audit nenalezen'); return; }
-  var sessions = audit.sessions || [];
-  
-  var byAuditor = {};
-  var totalSec = 0;
-  sessions.forEach(function(s){
-    if (!s.duration && s.start && s.end) s.duration = Math.floor((s.end-s.start)/1000);
-    if (s.duration) {
-      byAuditor[s.auditor] = (byAuditor[s.auditor]||0) + s.duration;
-      totalSec += s.duration;
-    }
-  });
-  
-  var html = '<div style="padding:16px;max-width:600px">';
-  html += '<h2 style="margin:0 0 12px 0">🕐 Historie kontrol</h2>';
-  
-  if (sessions.length === 0){
-    html += '<p style="color:#666">Zatím žádné kontroly nebyly zaznamenány.</p>';
-  } else {
-    html += '<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px;margin-bottom:16px">';
-    html += '<div style="font-weight:700;margin-bottom:8px">📊 Souhrn</div>';
-    Object.keys(byAuditor).forEach(function(name){
-      html += '<div style="display:flex;justify-content:space-between;padding:4px 0">';
-      html += '<span>'+name+'</span>';
-      html += '<span style="font-family:monospace;font-weight:700">'+formatDuration(byAuditor[name])+'</span>';
-      html += '</div>';
-    });
-    html += '<div style="border-top:1px solid #bae6fd;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700">';
-    html += '<span>CELKEM</span><span style="font-family:monospace">'+formatDuration(totalSec)+'</span></div>';
-    html += '</div>';
-    
-    html += '<div style="font-weight:700;margin-bottom:8px">📋 Jednotlivé kontroly</div>';
-    html += '<div style="max-height:300px;overflow-y:auto">';
-    var sortedSessions = sessions.slice().sort(function(a,b){return (b.start||0)-(a.start||0);});
-    sortedSessions.forEach(function(s){
-      var startDate = s.start ? new Date(s.start) : null;
-      var dateStr = startDate ? startDate.toLocaleDateString('cs-CZ')+' '+startDate.toLocaleTimeString('cs-CZ').slice(0,5) : '?';
-      var durStr = s.duration ? formatDuration(s.duration) : (s.end ? '?' : '⏱ běží...');
-      var bgColor = s.end ? '#f9fafb' : '#fef9c3';
-      html += '<div style="background:'+bgColor+';border:1px solid #e5e7eb;border-radius:6px;padding:8px 10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:13px">';
-      html += '<div><div style="font-weight:600">'+s.auditor+'</div><div style="color:#666;font-size:11px">'+dateStr+'</div></div>';
-      html += '<div style="font-family:monospace;font-weight:700;font-size:14px">'+durStr+'</div>';
-      html += '</div>';
-    });
-    html += '</div>';
-  }
-  
-  html += '<div style="margin-top:16px;text-align:right">';
-  html += '<button class="btn" onclick="closeTimerHistory()" style="background:#3b82f6;color:white;border:0;padding:8px 16px;font-weight:700">Zavřít</button>';
-  html += '</div></div>';
-  
-  var existing = document.getElementById('timer-history-modal');
-  if (existing) existing.remove();
-  var modal = document.createElement('div');
-  modal.id = 'timer-history-modal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
-  modal.innerHTML = '<div style="background:white;border-radius:12px;max-width:600px;width:100%;max-height:90vh;overflow-y:auto">'+html+'</div>';
-  modal.onclick = function(e){ if(e.target===modal) closeTimerHistory(); };
-  document.body.appendChild(modal);
-}
-
-function closeTimerHistory(){
-  var m = document.getElementById('timer-history-modal');
-  if (m) m.remove();
-}
-
-// ============================================================
-// NÁKLADY - Přehled nákladů auditů (admin only)
-// ============================================================
-function openCostsScreen(){
-  if (!currentUser) { toast('⚠️ Nejste přihlášen'); return; }
-  if (!isAdmin()) { toast('⚠️ Pouze admin'); return; }
-  
-  var screen = document.getElementById('costs-screen');
-  if (!screen) {
-    screen = document.createElement('div');
-    screen.id = 'costs-screen';
-    screen.innerHTML = '<div style="max-width:1100px;margin:0 auto">'+
-      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+
-        '<div style="font-size:24px">💼</div>'+
-        '<div style="flex:1">'+
-          '<div style="font-size:20px;font-weight:700;color:#0f172a">Náklady auditů</div>'+
-          '<div style="font-size:12px;color:#64748b">Přehled hodin auditorů × sazba + doprava + další položky</div>'+
-        '</div>'+
-        '<button class="btn btn-g" onclick="closeCostsScreen()" style="font-size:11px">← Zpět</button>'+
-      '</div>'+
-      '<div id="costs-list-view"></div>'+
-      '<div id="costs-detail-view" style="display:none"></div>'+
-    '</div>';
-    document.body.appendChild(screen);
-  }
-  
-  screen.style.cssText = 'background:#f5f7fa;min-height:100vh;padding:24px;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;overflow-y:auto;display:block';
-  document.getElementById('costs-detail-view').style.display = 'none';
-  document.getElementById('costs-list-view').style.display = 'block';
-  renderCostsList();
-}
-
-function closeCostsScreen(){
-  var screen = document.getElementById('costs-screen');
-  if (screen && screen.parentNode) {
-    screen.parentNode.removeChild(screen);
-  }
-  var am = document.getElementById('audit-manager');
-  am.classList.remove('hidden');
-  am.style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-}
-
-function renderCostsList(){
-  var list = document.getElementById('costs-list-view');
-  if (!auditsList || auditsList.length === 0){
-    list.innerHTML = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:30px;text-align:center;color:#64748b">Žádné audity nejsou k dispozici.</div>';
-    return;
-  }
-  
-  var html = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">';
-  html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
-  html += '<thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">';
-  html += '<th style="padding:12px 16px;text-align:left;font-weight:600;color:#475569">Audit</th>';
-  html += '<th style="padding:12px 16px;text-align:left;font-weight:600;color:#475569">Datum</th>';
-  html += '<th style="padding:12px 16px;text-align:right;font-weight:600;color:#475569">Hodiny</th>';
-  html += '<th style="padding:12px 16px;text-align:right;font-weight:600;color:#475569">Celkem Kč</th>';
-  html += '<th style="padding:12px 16px;text-align:center;font-weight:600;color:#475569"></th>';
-  html += '</tr></thead><tbody>';
-  
-  auditsList.forEach(function(audit){
-    var totals = calculateAuditCosts(audit);
-    html += '<tr style="border-bottom:1px solid #f1f5f9">';
-    html += '<td style="padding:12px 16px;font-weight:600">'+esc(audit.objekt||'(bez názvu)')+'</td>';
-    html += '<td style="padding:12px 16px;color:#64748b">'+esc(audit.datum||audit.updatedAt||'—')+'</td>';
-    html += '<td style="padding:12px 16px;text-align:right;font-family:monospace">'+formatDuration(totals.totalSeconds)+'</td>';
-    html += '<td style="padding:12px 16px;text-align:right;font-weight:700;color:#2563eb">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td>';
-    html += '<td style="padding:12px 16px;text-align:center"><button class="btn btn-b" onclick="openCostsDetail(\''+audit.id+'\')" style="font-size:11px;padding:5px 12px">Detail</button></td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table></div>';
-  list.innerHTML = html;
-}
-
-function calculateAuditCosts(audit){
-  var sessions = audit.sessions || [];
-  var costs = audit.costs || {};
-  var car = costs.car || {km:0, ratePerKm:12};
-  var items = costs.items || [];
-  
-  var byAuditor = {};
-  var totalSeconds = 0;
-  sessions.forEach(function(s){
-    if (!s.duration && s.start && s.end) s.duration = Math.floor((s.end-s.start)/1000);
-    if (s.duration && s.end) {
-      byAuditor[s.auditor] = (byAuditor[s.auditor]||0) + s.duration;
-      totalSeconds += s.duration;
-    }
-  });
-  
-  var laborTotal = 0;
-  var laborDetails = [];
-  Object.keys(byAuditor).forEach(function(name){
-    var seconds = byAuditor[name];
-    var hours = seconds / 3600;
-    var rate = getUserRate(name);
-    var amount = Math.round(hours * rate);
-    laborTotal += amount;
-    laborDetails.push({name:name, seconds:seconds, hours:hours, rate:rate, amount:amount});
-  });
-  
-  var carTotal = (car.km || 0) * (car.ratePerKm || 0);
-  var itemsTotal = items.reduce(function(s,i){return s + (Number(i.amount)||0);}, 0);
-  
-  return {
-    totalSeconds: totalSeconds,
-    laborDetails: laborDetails,
-    laborTotal: laborTotal,
-    car: car,
-    carTotal: carTotal,
-    items: items,
-    itemsTotal: itemsTotal,
-    grandTotal: laborTotal + carTotal + itemsTotal
-  };
-}
-
-function getUserRate(name){
-  if (!window._userRatesCache) window._userRatesCache = {};
-  if (window._userRatesCache[name] != null) return window._userRatesCache[name];
-  return 0;
-}
-
-async function loadUserRates(){
-  try {
-    var snap = await db.collection('users').get();
-    window._userRatesCache = {};
-    snap.forEach(function(doc){
-      var u = doc.data();
-      window._userRatesCache[u.name] = Number(u.hourlyRate)||0;
-    });
-  } catch(e){ console.warn('Load rates error:', e.message); }
-}
-
-async function openCostsDetail(auditIdArg){
-  await loadUserRates();
-  var audit = auditsList.find(function(a){return a.id===auditIdArg;});
-  if (!audit) { toast('Audit nenalezen'); return; }
-  
-  document.getElementById('costs-list-view').style.display = 'none';
-  var view = document.getElementById('costs-detail-view');
-  view.style.display = 'block';
-  
-  renderCostsDetail(audit);
-}
-
-function renderCostsDetail(audit){
-  var view = document.getElementById('costs-detail-view');
-  var totals = calculateAuditCosts(audit);
-  var costs = audit.costs || {};
-  var car = costs.car || {km:0, ratePerKm:12};
-  var items = costs.items || [];
-  
-  var html = '<button class="btn btn-g" onclick="renderCostsList();document.getElementById(\'costs-detail-view\').style.display=\'none\';document.getElementById(\'costs-list-view\').style.display=\'block\'" style="font-size:11px;margin-bottom:16px">← Seznam auditů</button>';
-  
-  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
-  html += '<div style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px">'+esc(audit.objekt||'(bez názvu)')+'</div>';
-  html += '<div style="font-size:13px;color:#64748b">'+(audit.datum?'📅 '+esc(audit.datum):'')+'</div>';
-  html += '</div>';
-  
-  // PRÁCE
-  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
-  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px">👷 Práce auditorů</div>';
-  if (totals.laborDetails.length === 0){
-    html += '<div style="color:#94a3b8;font-size:13px">Žádné ukončené kontroly</div>';
-  } else {
-    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
-    html += '<thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Auditor</th><th style="padding:8px 10px;text-align:right">Čas</th><th style="padding:8px 10px;text-align:right">Hodin</th><th style="padding:8px 10px;text-align:right">Sazba</th><th style="padding:8px 10px;text-align:right">Celkem</th></tr></thead><tbody>';
-    totals.laborDetails.forEach(function(d){
-      html += '<tr style="border-top:1px solid #f1f5f9">';
-      html += '<td style="padding:8px 10px;font-weight:600">'+esc(d.name)+'</td>';
-      html += '<td style="padding:8px 10px;text-align:right;font-family:monospace">'+formatDuration(d.seconds)+'</td>';
-      html += '<td style="padding:8px 10px;text-align:right">'+d.hours.toFixed(2)+' h</td>';
-      html += '<td style="padding:8px 10px;text-align:right">'+d.rate+' Kč/h</td>';
-      html += '<td style="padding:8px 10px;text-align:right;font-weight:700">'+d.amount.toLocaleString('cs-CZ')+' Kč</td>';
-      html += '</tr>';
-    });
-    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td colspan="4" style="padding:10px;text-align:right;font-weight:700">Mzdy celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#2563eb">'+totals.laborTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td></tr>';
-    html += '</tbody></table>';
-  }
-  html += '</div>';
-  
-  // AUTO
-  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
-  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px">🚗 Doprava autem</div>';
-  html += '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">';
-  html += '<label style="font-size:13px">Km: <input type="number" id="cost-car-km" value="'+(car.km||0)+'" min="0" style="width:100px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
-  html += '<label style="font-size:13px">Sazba Kč/km: <input type="number" id="cost-car-rate" value="'+(car.ratePerKm||12)+'" min="0" step="0.5" style="width:80px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;margin-left:6px" onchange="updateCarCost(\''+audit.id+'\')"></label>';
-  html += '<div style="margin-left:auto;font-weight:700;font-size:15px;color:#2563eb">'+totals.carTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></div>';
-  html += '</div></div>';
-  
-  // VOLNÉ POLOŽKY
-  html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-bottom:16px">';
-  html += '<div style="font-weight:700;color:#0f172a;margin-bottom:12px;display:flex;align-items:center;gap:8px">📋 Další položky <button onclick="addCostItem(\''+audit.id+'\')" style="background:#3b82f6;color:#fff;border:0;padding:4px 12px;border-radius:5px;cursor:pointer;font-size:12px;margin-left:auto">+ Přidat</button></div>';
-  
-  if (items.length === 0){
-    html += '<div style="color:#94a3b8;font-size:13px">Žádné položky. Přidejte parkovné, MHD, materiál atd.</div>';
-  } else {
-    html += '<table style="width:100%;border-collapse:collapse;font-size:13px">';
-    html += '<thead><tr style="background:#f8fafc"><th style="padding:8px 10px;text-align:left">Název</th><th style="padding:8px 10px;text-align:right">Částka</th><th style="padding:8px 10px;text-align:center;width:60px"></th></tr></thead><tbody>';
-    items.forEach(function(it, idx){
-      html += '<tr style="border-top:1px solid #f1f5f9">';
-      html += '<td style="padding:6px 10px"><input type="text" value="'+esc(it.name||'')+'" placeholder="např. Parkovné" style="width:100%;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px" onchange="updateCostItem(\''+audit.id+'\','+idx+',\'name\',this.value)"></td>';
-      html += '<td style="padding:6px 10px;text-align:right"><input type="number" value="'+(it.amount||0)+'" min="0" style="width:120px;padding:6px 10px;border:1px solid #dce4ec;border-radius:5px;text-align:right" onchange="updateCostItem(\''+audit.id+'\','+idx+',\'amount\',this.value)"> Kč</td>';
-      html += '<td style="padding:6px 10px;text-align:center"><button onclick="deleteCostItem(\''+audit.id+'\','+idx+')" style="background:#fee2e2;color:#991b1b;border:0;padding:4px 8px;border-radius:5px;cursor:pointer;font-size:11px">×</button></td>';
-      html += '</tr>';
-    });
-    html += '<tr style="border-top:2px solid #e2e8f0;background:#f8fafc"><td style="padding:10px;text-align:right;font-weight:700">Položky celkem:</td><td style="padding:10px;text-align:right;font-weight:700;color:#2563eb">'+totals.itemsTotal.toLocaleString('cs-CZ')+' Kč<span style="font-size:10px;color:#94a3b8;font-weight:500"> bez DPH</span></td><td></td></tr>';
-    html += '</tbody></table>';
-  }
-  html += '</div>';
-  
-  // CELKEM
-  html += '<div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-radius:10px;padding:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">';
-  html += '<div style="font-size:16px;font-weight:600">💰 CELKOVÉ NÁKLADY</div>';
-  html += '<div style="text-align:right"><div style="font-size:28px;font-weight:800;font-family:monospace">'+totals.grandTotal.toLocaleString('cs-CZ')+' Kč</div><div style="font-size:11px;opacity:0.85;margin-top:2px">bez DPH</div></div>';
-  html += '</div>';
-  
-  view.innerHTML = html;
-}
-
-async function updateCarCost(auditIdArg){
-  var audit = auditsList.find(function(a){return a.id===auditIdArg;});
-  if (!audit) return;
-  var km = Number(document.getElementById('cost-car-km').value)||0;
-  var rate = Number(document.getElementById('cost-car-rate').value)||0;
-  audit.costs = audit.costs || {};
-  audit.costs.car = {km:km, ratePerKm:rate};
-  await saveCosts(audit);
-  renderCostsDetail(audit);
-}
-
-async function addCostItem(auditIdArg){
-  var audit = auditsList.find(function(a){return a.id===auditIdArg;});
-  if (!audit) return;
-  audit.costs = audit.costs || {};
-  audit.costs.items = audit.costs.items || [];
-  audit.costs.items.push({name:'', amount:0});
-  await saveCosts(audit);
-  renderCostsDetail(audit);
-}
-
-async function updateCostItem(auditIdArg, idx, field, value){
-  var audit = auditsList.find(function(a){return a.id===auditIdArg;});
-  if (!audit || !audit.costs || !audit.costs.items) return;
-  audit.costs.items[idx][field] = field === 'amount' ? (Number(value)||0) : value;
-  await saveCosts(audit);
-  if (field === 'amount') renderCostsDetail(audit);
-}
-
-async function deleteCostItem(auditIdArg, idx){
-  if (!confirm('Smazat tuto položku?')) return;
-  var audit = auditsList.find(function(a){return a.id===auditIdArg;});
-  if (!audit || !audit.costs || !audit.costs.items) return;
-  audit.costs.items.splice(idx, 1);
-  await saveCosts(audit);
-  renderCostsDetail(audit);
-}
-
-async function saveCosts(audit){
-  try {
-    await db.collection('audits').doc(audit.id).update({
-      costs: audit.costs,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch(e) { 
-    console.warn('Costs save error:', e.message); 
-    toast('⚠️ Chyba při ukládání');
-  }
-}
-
-async function saveTimerToFirebase(audit){
-  try {
-    await db.collection('audits').doc(audit.id).update({
-      sessions: audit.sessions,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-  } catch(e) { console.warn('Timer save error:', e.message); }
-}
-
-// Při otevření auditu - obnov timer pokud běží
-function restoreTimerState(){
-  if (!auditId || !currentUser) { stopTimerDisplay(); return; }
-  var audit = auditsList.find(function(a){return a.id===auditId;});
-  if (!audit || !audit.sessions) { stopTimerDisplay(); return; }
-  var openSession = audit.sessions.find(function(s){ 
-    return s.auditor === currentUser.name && !s.end;
-  });
-  if (openSession) {
-    startTimerDisplay(openSession.start);
-  } else {
-    stopTimerDisplay();
-  }
 }
 
 async function toggleAuditDone(){
@@ -3629,8 +3143,6 @@ function confirmAdd(){
     solution:'',photos:mPhotos.slice(),
     px:pending.px,py:pending.py,page:pending.page,
     floorId:pending.floorId,floorName:pending.floorName,
-    addedBy: currentUser ? currentUser.name : '',
-    addedAt: Date.now(),
     time:new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'})
   };
   floor().defects.push(d);
