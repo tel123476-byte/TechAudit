@@ -1470,6 +1470,10 @@ async function doLogin() {
     currentUser = found;
     localStorage.setItem('techaudit_user', JSON.stringify(currentUser));
     document.getElementById('login-screen').classList.add('hidden');
+    // Vždy zobraz úvodní obrazovku (seznam auditů) po přihlášení
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('audit-manager').classList.remove('hidden');
+    document.getElementById('panel').classList.remove('open');
     applyRoleUI();
     loadAuditsList();
     toast('Vítejte, ' + currentUser.name + '!');
@@ -1481,6 +1485,9 @@ async function doLogin() {
       if (u.name.toLowerCase() === name.toLowerCase() && u.pin === pin) {
         currentUser = u;
         document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('audit-manager').classList.remove('hidden');
+        document.getElementById('panel').classList.remove('open');
         applyRoleUI();
         loadAuditsList();
         toast('Přihlášen offline — ' + currentUser.name);
@@ -2147,10 +2154,18 @@ document.getElementById('app').style.display = 'none';
     try {
       currentUser = JSON.parse(cached);
       document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('app').style.display = 'flex';
-      applyRoleUI();
-      if (sharedId) { openAudit(sharedId); }
-      else { loadAuditsList(); }
+      // Pokud je v URL ?id=... otevři přímo ten audit, jinak vždy úvodní obrazovku
+      if (sharedId) {
+        document.getElementById('app').style.display = 'flex';
+        applyRoleUI();
+        openAudit(sharedId);
+      } else {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('audit-manager').classList.remove('hidden');
+        document.getElementById('panel').classList.remove('open');
+        applyRoleUI();
+        loadAuditsList();
+      }
     } catch(e) {
       showLoginScreen();
     }
@@ -2181,10 +2196,17 @@ function showLoginScreen() {
       currentUser = found;
       localStorage.setItem('techaudit_user', JSON.stringify(currentUser));
       document.getElementById('login-screen').classList.add('hidden');
-      document.getElementById('app').style.display = 'flex';
-      applyRoleUI();
-      if (sharedId) { openAudit(sharedId); }
-      else { loadAuditsList(); }
+      if (sharedId) {
+        document.getElementById('app').style.display = 'flex';
+        applyRoleUI();
+        openAudit(sharedId);
+      } else {
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('audit-manager').classList.remove('hidden');
+        document.getElementById('panel').classList.remove('open');
+        applyRoleUI();
+        loadAuditsList();
+      }
       toast('Vítejte, ' + currentUser.name + '!');
     } catch(e) {
       var cached2 = localStorage.getItem('techaudit_user');
@@ -2193,7 +2215,9 @@ function showLoginScreen() {
         if (u.name.toLowerCase() === name.toLowerCase() && u.pin === pin) {
           currentUser = u;
           document.getElementById('login-screen').classList.add('hidden');
-          document.getElementById('app').style.display = 'flex';
+          document.getElementById('app').style.display = 'none';
+          document.getElementById('audit-manager').classList.remove('hidden');
+          document.getElementById('panel').classList.remove('open');
           applyRoleUI();
           loadAuditsList();
           toast('Přihlášen offline — ' + currentUser.name);
@@ -2824,6 +2848,7 @@ function closeCostsScreen(){
   if (screen && screen.parentNode) {
     screen.parentNode.removeChild(screen);
   }
+  document.getElementById('audit-manager').classList.remove('hidden');
 }
 
 function openCostsScreen(){
@@ -3100,22 +3125,22 @@ var currentCatalog = null; // Cache ceníku z Firestore
 
 async function loadCatalog(){
   if (currentCatalog) return currentCatalog;
-  try {
-    var doc = await db.collection('catalog').doc('main').get();
-    if (doc.exists) {
-      currentCatalog = doc.data().data || DEFAULT_CATALOG;
-    } else {
-      // Při prvním spuštění ulož default
-      currentCatalog = DEFAULT_CATALOG;
-      await db.collection('catalog').doc('main').set({
-        data: DEFAULT_CATALOG,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    }
-  } catch(e) {
-    console.warn('Catalog load error:', e.message);
-    currentCatalog = DEFAULT_CATALOG;
-  }
+  // Při prvním načtení použij DEFAULT okamžitě, pak na pozadí načti z Firestore
+  currentCatalog = DEFAULT_CATALOG;
+  // Pozadí: aktualizuj z Firestore (neblokuje UI)
+  (async function(){
+    try {
+      var doc = await db.collection('catalog').doc('main').get();
+      if (doc.exists) {
+        currentCatalog = doc.data().data || DEFAULT_CATALOG;
+      } else {
+        await db.collection('catalog').doc('main').set({
+          data: DEFAULT_CATALOG,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    } catch(e) { console.warn('Catalog load:', e.message); }
+  })();
   return currentCatalog;
 }
 
@@ -3168,6 +3193,8 @@ function closeBudgetScreen(){
   if (screen && screen.parentNode) {
     screen.parentNode.removeChild(screen);
   }
+  // Zajisti že úvodní obrazovka je vidět
+  document.getElementById('audit-manager').classList.remove('hidden');
 }
 
 async function switchBudgetTab(tab){
