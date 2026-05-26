@@ -832,6 +832,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
         <th>Jméno</th>
         <th>Role</th>
         <th>PIN</th>
+        <th>Sazba</th>
         <th>Přidáno</th>
         <th></th>
       </tr></thead>
@@ -855,6 +856,10 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
             <option value="reader">Čtenář</option>
             <option value="admin">Admin</option>
           </select>
+        </div>
+        <div>
+          <div class="login-lbl" style="margin-bottom:5px">Hod. sazba (Kč)</div>
+          <input class="fi" id="new-user-rate" type="number" placeholder="850" min="0">
         </div>
         <button class="btn btn-b" onclick="addUser()" style="height:34px">Přidat</button>
       </div>
@@ -900,6 +905,7 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
         <div class="am-sync-dot" id="am-sync-dot"></div>
         <span id="am-sync-txt">Načítám...</span>
       </div>
+      <button class="btn btn-g admin-only" onclick="openCostsScreen()" style="font-size:11px">💼 Náklady</button>
       <button class="btn btn-g admin-only" onclick="openUsers()" style="font-size:11px">👥 Uživatelé</button>
       <button id="pwa-install-btn" onclick="installPWA()" style="display:none;align-items:center;gap:6px;padding:7px 12px;background:#0d9488;border:none;color:#fff;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer">
         📲 Přidat na plochu
@@ -1007,6 +1013,8 @@ button,label,.btn,.am-card,.am-tbtn,.ftab,.mk,[onclick]{cursor:pointer;touch-act
     <span id="sync-txt">Načítám...</span>
   </div>
   <button class="btn btn-g" onclick="openListModal()">📋 Vady</button>
+  <button id="btn-timer" class="btn" onclick="toggleTimer()" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-weight:700">▶ Zahájit</button>
+  <span id="timer-display" style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#065f46;padding:0 6px;display:none">00:00:00</span>
   <button class="btn btn-b admin-only" onclick="openExportDlg()">📄 Export</button>
   <button class="btn btn-grn admin-only" onclick="doArchive()">📦 Archiv ZIP</button>
   <button id="btn-finish" class="btn admin-only" onclick="toggleAuditDone()" style="background:#f0f7ee;color:#2d6b26;border:1px solid #c8e0c4;font-weight:700">✓ Dokončit audit</button>
@@ -1531,11 +1539,12 @@ async function loadUsers() {
         '<td style="font-weight:600">'+esc(u.name)+'</td>'+
         '<td><span class="us-role '+roleCls+'">'+roleLbl+'</span></td>'+
         '<td><span style="font-family:\'JetBrains Mono\',monospace;background:#f0f4f8;padding:2px 8px;border-radius:4px;font-size:11px">'+u.pin+'</span></td>'+
+        '<td><input type="number" value="'+(u.hourlyRate||0)+'" min="0" style="width:80px;padding:4px 6px;border:1px solid #dce4ec;border-radius:4px;font-size:11px;text-align:right" onblur="updateUserRate(\''+doc.id+'\',this.value)"> Kč/h</td>'+
         '<td style="color:#a0afbe;font-size:11px">'+(u.addedAt||'—')+'</td>'+
         '<td><button class="btn btn-r" style="font-size:10px;padding:4px 8px" onclick="deleteUser(\''+doc.id+'\',\''+esc(u.name)+'\')">Smazat</button></td>'+
         '</tr>';
     });
-    if (!rows) rows = '<tr><td colspan="5" style="text-align:center;color:#a0afbe;padding:20px">Žádní uživatelé</td></tr>';
+    if (!rows) rows = '<tr><td colspan="6" style="text-align:center;color:#a0afbe;padding:20px">Žádní uživatelé</td></tr>';
     document.getElementById('users-tbody').innerHTML = rows;
   } catch(e) { toast('Chyba načítání uživatelů'); }
 }
@@ -1544,18 +1553,28 @@ async function addUser() {
   var name = document.getElementById('new-user-name').value.trim();
   var pin  = document.getElementById('new-user-pin').value.trim();
   var role = document.getElementById('new-user-role').value;
+  var rate = parseFloat(document.getElementById('new-user-rate').value)||0;
   if (!name || !pin) { toast('Vyplňte jméno a PIN'); return; }
   if (pin.length < 3) { toast('PIN musí mít alespoň 3 znaky'); return; }
   try {
     await db.collection('users').add({
-      name: name, pin: pin, role: role,
+      name: name, pin: pin, role: role, hourlyRate: rate,
       addedAt: new Date().toLocaleDateString('cs-CZ'),
       addedBy: currentUser ? currentUser.name : 'system'
     });
     document.getElementById('new-user-name').value = '';
     document.getElementById('new-user-pin').value = '';
+    document.getElementById('new-user-rate').value = '';
     loadUsers();
     toast('✓ Uživatel '+name+' přidán');
+  } catch(e) { toast('Chyba: '+e.message); }
+}
+
+async function updateUserRate(id, newRate) {
+  var rate = parseFloat(newRate)||0;
+  try {
+    await db.collection('users').doc(id).update({ hourlyRate: rate });
+    toast('✓ Sazba uložena: '+rate+' Kč/h');
   } catch(e) { toast('Chyba: '+e.message); }
 }
 
@@ -1577,7 +1596,9 @@ async function openAssignModal(auditIdLocal) {
   if (!isAdmin()) return;
   assignTargetAuditId = auditIdLocal;
   var audit = auditsList.find(function(a){return a.id===auditIdLocal;});
-  assignSelectedName = audit ? (audit.auditor||'') : '';
+  // Pole přiřazených (může být víc auditorů)
+  var assigned = audit && audit.assignedAuditors ? audit.assignedAuditors : 
+                 (audit && audit.auditor ? [audit.auditor] : []);
   document.getElementById('assign-audit-name').textContent = audit ? audit.objekt : '';
   document.getElementById('assign-modal').classList.remove('hidden');
   // Načti uživatele
@@ -1585,23 +1606,19 @@ async function openAssignModal(auditIdLocal) {
   listEl.innerHTML = '<div style="padding:30px;text-align:center;color:#a0afbe">Načítám…</div>';
   try {
     var snap = await db.collection('users').orderBy('name').get();
-    var rows = '';
-    // Možnost "Nepřiřazeno"
-    rows += '<label class="assign-row" style="display:flex;align-items:center;padding:14px 22px;cursor:pointer;border-bottom:1px solid #f0f4f8;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.05);min-height:48px">'+
-      '<input type="radio" name="assignUser" value="" '+(!assignSelectedName?'checked':'')+' style="width:20px;height:20px;margin-right:12px;flex-shrink:0">'+
-      '<span style="color:#a0afbe;font-style:italic">— Nepřiřazeno —</span>'+
-      '</label>';
+    var rows = '<div style="padding:8px 22px;color:#6b7f92;font-size:11px;font-style:italic">Můžete vybrat víc auditorů</div>';
     snap.forEach(function(doc){
       var u = doc.data();
-      if (u.role !== 'auditor' && u.role !== 'admin') return; // jen auditoři + admin
-      var sel = (u.name === assignSelectedName) ? 'checked' : '';
+      if (u.role !== 'auditor' && u.role !== 'admin') return;
+      var isSel = assigned.indexOf(u.name) >= 0;
       var roleBadge = u.role === 'admin' ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px">Admin</span>' : '';
+      var rateInfo = u.hourlyRate ? '<span style="color:#6b7f92;font-size:11px;margin-left:auto">'+u.hourlyRate+' Kč/h</span>' : '';
       rows += '<label class="assign-row" style="display:flex;align-items:center;padding:14px 22px;cursor:pointer;border-bottom:1px solid #f0f4f8;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,0,0,.05);min-height:48px">'+
-        '<input type="radio" name="assignUser" value="'+esc(u.name)+'" '+sel+' style="width:20px;height:20px;margin-right:12px;flex-shrink:0">'+
-        '<span style="font-weight:600">'+esc(u.name)+'</span>'+roleBadge+
+        '<input type="checkbox" name="assignUser" value="'+esc(u.name)+'" '+(isSel?'checked':'')+' style="width:20px;height:20px;margin-right:12px;flex-shrink:0">'+
+        '<span style="font-weight:600">'+esc(u.name)+'</span>'+roleBadge+rateInfo+
         '</label>';
     });
-    listEl.innerHTML = rows || '<div style="padding:30px;text-align:center;color:#a0afbe">Žádní auditoři</div>';
+    listEl.innerHTML = rows;
   } catch(e) {
     listEl.innerHTML = '<div style="padding:30px;text-align:center;color:#ef4444">Chyba: '+e.message+'</div>';
   }
@@ -1614,15 +1631,16 @@ function closeAssignModal() {
 
 async function saveAssignment() {
   if (!assignTargetAuditId) return;
-  var radios = document.querySelectorAll('input[name="assignUser"]');
-  var selected = '';
-  radios.forEach(function(r){ if (r.checked) selected = r.value; });
+  var checkboxes = document.querySelectorAll('input[name="assignUser"]');
+  var selected = [];
+  checkboxes.forEach(function(r){ if (r.checked) selected.push(r.value); });
   try {
     await db.collection('audits').doc(assignTargetAuditId).update({
-      auditor: selected,
+      assignedAuditors: selected,
+      auditor: selected[0] || '', // pro zpětnou kompatibilitu
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    toast(selected ? '✓ Přiřazeno: '+selected : '✓ Přiřazení zrušeno');
+    toast(selected.length ? '✓ Přiřazeno: '+selected.join(', ') : '✓ Přiřazení zrušeno');
     closeAssignModal();
     loadAuditsList();
   } catch(e) {
@@ -2454,12 +2472,18 @@ async function loadAuditsList() {
       // Admin vidí vše, Auditor vidí jen své přiřazené, Čtenář vidí jen dokončené
       if (currentUser) {
         if (currentUser.role === 'reader' && d.status !== 'done') return;
-        if (currentUser.role === 'auditor' && d.auditor !== currentUser.name) return;
+        if (currentUser.role === 'auditor') {
+          var assigned = d.assignedAuditors || (d.auditor ? [d.auditor] : []);
+          if (assigned.indexOf(currentUser.name) < 0) return;
+        }
       }
       auditsList.push({
         id: doc.id,
         objekt: d.objekt || 'Nepojmenovaný audit',
         auditor: d.auditor || '',
+        assignedAuditors: d.assignedAuditors || (d.auditor ? [d.auditor] : []),
+        sessions: d.sessions || [],
+        transportCosts: d.transportCosts || [],
         datum: d.datum || '',
         status: d.status || 'active',
         defectCount: d.floors ? d.floors.reduce(function(s,f){return s+f.defects.length;},0) : 0,
@@ -2604,6 +2628,113 @@ function openAudit(id) {
   // Nastav stav tlačítka
   var existing = auditsList.find(function(a){return a.id===id;});
   updateFinishBtn(existing ? existing.status : 'active');
+  // Obnov timer pokud nějaký běží
+  setTimeout(restoreTimerState, 500);
+}
+
+// ============================================================
+// TIMER - Měření času auditu
+// ============================================================
+var timerInterval = null;
+var timerStartTime = null;
+
+function toggleTimer(){
+  if (!auditId || !currentUser) return;
+  // Najdi aktivní session pro tohoto uživatele
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit) return;
+  audit.sessions = audit.sessions || [];
+  var openSession = audit.sessions.find(function(s){ 
+    return s.auditor === currentUser.name && !s.end;
+  });
+  if (openSession) {
+    // STOP - ukončit aktivní session
+    openSession.end = Date.now();
+    openSession.duration = Math.floor((openSession.end - openSession.start)/1000);
+    stopTimerDisplay();
+    saveTimerToFirebase(audit);
+    toast('⏹ Kontrola ukončena. Čas: '+formatDuration(openSession.duration));
+  } else {
+    // START - nová session
+    var session = {
+      id: 't_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+      auditor: currentUser.name,
+      start: Date.now(),
+      end: null,
+      duration: 0
+    };
+    audit.sessions.push(session);
+    startTimerDisplay(session.start);
+    saveTimerToFirebase(audit);
+    toast('▶ Kontrola zahájena');
+  }
+}
+
+function startTimerDisplay(startTs){
+  timerStartTime = startTs;
+  var btn = document.getElementById('btn-timer');
+  var disp = document.getElementById('timer-display');
+  if (!btn || !disp) return;
+  btn.innerHTML = '⏹ Ukončit';
+  btn.style.background = '#fef2f2';
+  btn.style.color = '#991b1b';
+  btn.style.borderColor = '#fecaca';
+  disp.style.display = 'inline-block';
+  updateTimerDisplay();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(updateTimerDisplay, 1000);
+}
+
+function stopTimerDisplay(){
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  timerStartTime = null;
+  var btn = document.getElementById('btn-timer');
+  var disp = document.getElementById('timer-display');
+  if (!btn || !disp) return;
+  btn.innerHTML = '▶ Zahájit';
+  btn.style.background = '#d1fae5';
+  btn.style.color = '#065f46';
+  btn.style.borderColor = '#6ee7b7';
+  disp.style.display = 'none';
+}
+
+function updateTimerDisplay(){
+  if (!timerStartTime) return;
+  var elapsed = Math.floor((Date.now() - timerStartTime)/1000);
+  var disp = document.getElementById('timer-display');
+  if (disp) disp.textContent = formatDuration(elapsed);
+}
+
+function formatDuration(seconds){
+  var h = Math.floor(seconds/3600);
+  var m = Math.floor((seconds%3600)/60);
+  var s = seconds%60;
+  return (h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+}
+
+async function saveTimerToFirebase(audit){
+  try {
+    await db.collection('audits').doc(audit.id).update({
+      sessions: audit.sessions,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) { console.warn('Timer save error:', e.message); }
+}
+
+// Při otevření auditu - obnov timer pokud běží
+function restoreTimerState(){
+  if (!auditId || !currentUser) { stopTimerDisplay(); return; }
+  var audit = auditsList.find(function(a){return a.id===auditId;});
+  if (!audit || !audit.sessions) { stopTimerDisplay(); return; }
+  var openSession = audit.sessions.find(function(s){ 
+    return s.auditor === currentUser.name && !s.end;
+  });
+  if (openSession) {
+    startTimerDisplay(openSession.start);
+  } else {
+    stopTimerDisplay();
+  }
 }
 
 async function toggleAuditDone(){
@@ -3143,6 +3274,8 @@ function confirmAdd(){
     solution:'',photos:mPhotos.slice(),
     px:pending.px,py:pending.py,page:pending.page,
     floorId:pending.floorId,floorName:pending.floorName,
+    addedBy: currentUser ? currentUser.name : '',
+    addedAt: Date.now(),
     time:new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'})
   };
   floor().defects.push(d);
