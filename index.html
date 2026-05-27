@@ -2011,6 +2011,31 @@ async function loadFromFirebase() {
           defects: f.defects.map(function(d) { return defectFromFirebase(d, localPhotos); })
         };
       });
+      // OPRAVA: Najdi a oprav duplicitní floor IDs
+      var seenIds = {};
+      var needsFix = false;
+      floors.forEach(function(f){
+        if (seenIds[f.id]) { needsFix = true; }
+        seenIds[f.id] = true;
+      });
+      if (needsFix) {
+        console.warn('[FLOOR_ID_FIX] Detected duplicate floor IDs, fixing...');
+        // Přiřaď postupně nová unikátní ID
+        var usedIds = {};
+        var nextId = 1;
+        floors.forEach(function(f){
+          if (usedIds[f.id]) {
+            // Najdi nové volné ID
+            while (usedIds[nextId]) nextId++;
+            console.warn('[FLOOR_ID_FIX] Floor "'+f.name+'" had duplicate id='+f.id+', new id='+nextId);
+            f.id = nextId;
+          }
+          usedIds[f.id] = true;
+        });
+        toast('Opraveno duplicitní ID podlaží');
+        // Ulož opravené audit zpět
+        setTimeout(function(){ scheduleSync(); }, 1000);
+      }
       // Nastav counter ID
       var maxId = 0;
       floors.forEach(function(f) { f.defects.forEach(function(d) { if(d.id > maxId) maxId = d.id; }); });
@@ -3740,15 +3765,35 @@ function loadFloorView(){
   document.getElementById('stxt').textContent=f.loaded?'Podlaží: '+f.name+' · Klikněte na výkres':'Podlaží: '+f.name+' · Nahrajte výkres';
 
   // VŽDY nejdřív vyčisti zobrazení (zabraň zobrazení starého výkresu z jiného podlaží)
-  document.getElementById('planwrap').style.display='none';
-  document.getElementById('upzone').style.display='flex';
+  var planwrap = document.getElementById('planwrap');
+  var planimg = document.getElementById('planimg');
+  var upzone = document.getElementById('upzone');
+  var mlayer = document.getElementById('mlayer');
+  
+  // Schovej VŠECHNO co souvisí s výkresem
+  if (planwrap) planwrap.style.display='none';
+  if (planimg) {
+    planimg.onload = null;
+    planimg.src = '';
+    planimg.style.display = 'none';
+    planimg.style.visibility = 'hidden';
+    planimg.style.width = '0';
+    planimg.style.height = '0';
+  }
+  if (mlayer) mlayer.innerHTML = '';
+  if (upzone) upzone.style.display='flex';
   document.getElementById('hintbar').style.display='none';
   document.getElementById('sdot').classList.add('off');
   hideTabs();
-  var planimg = document.getElementById('planimg');
-  if (planimg) { planimg.src = ''; planimg.onload = null; }
 
   if(f.loaded&&f.planSrc){
+    // Při zobrazování plánu obnovíme styly
+    if (planimg) {
+      planimg.style.visibility = 'visible';
+      planimg.style.display = 'block';
+      planimg.style.width = '';
+      planimg.style.height = '';
+    }
     showPlan(f.planSrc,true);
     if(f.pdfPages.length>1)buildTabs(f.pdfPages.length);
     else hideTabs();
@@ -3758,8 +3803,14 @@ function loadFloorView(){
     var currentFloorId = f.id;
     loadFloorPlan(f).then(function(ok) {
       // Ověř že uživatel mezitím nepřepnul na jiné podlaží
-      if (floor() && floor().id !== currentFloorId) return;
+      if (!floor() || floor().id !== currentFloorId) return;
       if (ok) {
+        if (planimg) {
+          planimg.style.visibility = 'visible';
+          planimg.style.display = 'block';
+          planimg.style.width = '';
+          planimg.style.height = '';
+        }
         showPlan(f.planSrc, true);
         if(f.pdfPages.length>1)buildTabs(f.pdfPages.length);
         else hideTabs();
