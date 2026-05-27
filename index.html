@@ -2149,11 +2149,16 @@ function defectForFirebase(d) {
     floorId: d.floorId,
     floorName: d.floorName,
     time: d.time,
-    photoCount: (d.photos && d.photos.length) || 0
+    photoCount: (d.photos && d.photos.length) || 0,
+    photos_thumb: d.photos_thumb || [] // mini thumbnaily pro cloud sync (base64, max 300x400)
   };
 }
 // Vada z Firebase → lokální objekt (doplní fotky z localStorage)
 function defectFromFirebase(d, localPhotos) {
+  var localFotos = (localPhotos && localPhotos[d.id]) || [];
+  // Pokud nejsou lokální fotky, použij thumbnaily z cloudu
+  var usingCloudThumb = localFotos.length === 0 && d.photos_thumb && d.photos_thumb.length > 0;
+  var photos = usingCloudThumb ? d.photos_thumb : localFotos;
   return {
     id: d.id,
     type: d.type,
@@ -2169,7 +2174,9 @@ function defectFromFirebase(d, localPhotos) {
     floorId: d.floorId,
     floorName: d.floorName,
     time: d.time,
-    photos: (localPhotos && localPhotos[d.id]) || []
+    photos: photos,
+    photos_thumb: d.photos_thumb || [],
+    photos_from_cloud: usingCloudThumb // flag pro export
   };
 }
 
@@ -4339,10 +4346,24 @@ function renderPPh(d){
     return '<div class="pitem"><img src="'+src+'"><button class="prm" onclick="rmPh('+i+')">✕</button></div>';
   }).join('');
 }
-function rmPh(i){var d=findDefect(aId);if(!d)return;d.photos.splice(i,1);renderPPh(d);renderList();}
+function rmPh(i){var d=findDefect(aId);if(!d)return;d.photos.splice(i,1);if(d.photos_thumb)d.photos_thumb.splice(i,1);renderPPh(d);renderList();scheduleSync();}
 function addPh(files){
   var d=findDefect(aId);if(!d)return;
-  readFiles(Array.from(files),function(imgs){d.photos=d.photos.concat(imgs);renderPPh(d);renderList();toast('+'+imgs.length+' foto');});
+  readFiles(Array.from(files),async function(imgs){
+    d.photos=d.photos.concat(imgs);
+    // Vygeneruj thumbnaily pro cloud sync (max 400x500, kvalita 70%)
+    if (!d.photos_thumb) d.photos_thumb = [];
+    for (var i = 0; i < imgs.length; i++) {
+      try {
+        var thumb = await resizePhoto(imgs[i], 400, 500, 0.7);
+        d.photos_thumb.push(thumb);
+      } catch(e) { d.photos_thumb.push(imgs[i]); }
+    }
+    renderPPh(d);
+    renderList();
+    toast('+'+imgs.length+' foto');
+    scheduleSync(); // Spustí synchronizaci s cloudem
+  });
 }
 function savePanel(){
   var d=findDefect(aId);if(!d)return;
@@ -4434,6 +4455,15 @@ async function runExport(){
   var maxPh=parseInt(document.getElementById('exp-max-photos').value);
   var sizePx={s:120,m:300,l:600,xl:1200}[sizeVal];
   var dispPx={s:110,m:260,l:520,xl:900}[sizeVal];
+  
+  // Varování pokud používáme cloud thumbnaily a uživatel chce vysoké rozlišení
+  if (sizePx >= 600) {
+    var all2 = allDefects();
+    var hasCloudThumbs = all2.some(function(d){ return d.photos_from_cloud && d.photos.length > 0; });
+    if (hasCloudThumbs) {
+      if (!confirm('UPOZORNĚNÍ: Některé fotky jsou pouze v náhledové kvalitě (400×500 px), protože byly pořízeny na jiném zařízení. Při vysokém rozlišení mohou být rozmazané. Pro plné rozlišení otevřete audit na zařízení kde byly fotky pořízeny.\n\nPokračovat v exportu?')) return;
+    }
+  }
 
   var ov=document.getElementById('prov');ov.classList.add('on');
   setP(5,'Připravuji report...'); await sleep(80);
@@ -4729,6 +4759,12 @@ async function doArchive(){
   var all = allDefects();
   if(!all.length){ toast('Nejprve přidejte alespoň jeden záznam'); return; }
   if(typeof JSZip === 'undefined'){ toast('JSZip se nenačetl — zkontrolujte připojení'); return; }
+  
+  // Zjisti zda jsou fotky pouze ve formě cloud thumbnaily (nižší kvalita)
+  var hasCloudThumbs = all.some(function(d){ return d.photos_from_cloud && d.photos.length > 0; });
+  if (hasCloudThumbs) {
+    if (!confirm('UPOZORNĚNÍ: Některé fotky jsou pouze v náhledové kvalitě (400×500 px), protože byly pořízeny na jiném zařízení. Pro plné rozlišení otevřete audit na zařízení kde byly fotky pořízeny.\n\nPokračovat v exportu?')) return;
+  }
 
   var ov = document.getElementById('prov'); ov.classList.add('on');
   setP(5, 'Připravuji archiv...'); await sleep(80);
