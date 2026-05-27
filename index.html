@@ -2906,13 +2906,21 @@ function toggleAdminMenu(e){
     }
     container.appendChild(m);
   }
+  m.style.display = 'block';
+  // Pozicování - po display:block zjistíme reálnou šířku menu
   var btn = e ? e.target : null;
   if (btn) {
     var rect = btn.getBoundingClientRect();
+    var menuWidth = m.offsetWidth || 220;
+    var viewportWidth = window.innerWidth;
+    var left = rect.right - menuWidth;
+    // Pokud by menu vykročilo z obrazovky vpravo, zarovnej k pravému okraji
+    if (left + menuWidth > viewportWidth - 8) left = viewportWidth - menuWidth - 8;
+    // Pokud by vykročilo vlevo, zarovnej k levému okraji
+    if (left < 8) left = 8;
     m.style.top = (rect.bottom + 4) + 'px';
-    m.style.left = Math.max(8, rect.right - 220) + 'px';
+    m.style.left = left + 'px';
   }
-  m.style.display = 'block';
 }
 
 function hideAdminMenu(){
@@ -2924,7 +2932,6 @@ function toggleAuditorMenu(e){
   var m = document.getElementById('auditor-menu');
   if (!m) return;
   if (m.style.display === 'block') { m.style.display = 'none'; return; }
-  // Přesuň menu do body aby uniklo z overflow:hidden v topbaru
   if (m.parentNode && m.parentNode.id !== 'body-menus') {
     var container = document.getElementById('body-menus');
     if (!container) {
@@ -2934,13 +2941,18 @@ function toggleAuditorMenu(e){
     }
     container.appendChild(m);
   }
+  m.style.display = 'block';
   var btn = e ? e.target : null;
   if (btn) {
     var rect = btn.getBoundingClientRect();
+    var menuWidth = m.offsetWidth || 200;
+    var viewportWidth = window.innerWidth;
+    var left = rect.right - menuWidth;
+    if (left + menuWidth > viewportWidth - 8) left = viewportWidth - menuWidth - 8;
+    if (left < 8) left = 8;
     m.style.top = (rect.bottom + 4) + 'px';
-    m.style.left = Math.max(8, rect.right - 200) + 'px';
+    m.style.left = left + 'px';
   }
-  m.style.display = 'block';
 }
 
 function hideAuditorMenu(){
@@ -2961,13 +2973,18 @@ function toggleEditorAdminMenu(e){
     }
     container.appendChild(m);
   }
+  m.style.display = 'block';
   var btn = e ? e.target : null;
   if (btn) {
     var rect = btn.getBoundingClientRect();
+    var menuWidth = m.offsetWidth || 220;
+    var viewportWidth = window.innerWidth;
+    var left = rect.right - menuWidth;
+    if (left + menuWidth > viewportWidth - 8) left = viewportWidth - menuWidth - 8;
+    if (left < 8) left = 8;
     m.style.top = (rect.bottom + 4) + 'px';
-    m.style.left = Math.max(8, rect.right - 220) + 'px';
+    m.style.left = left + 'px';
   }
-  m.style.display = 'block';
 }
 
 function hideEditorAdminMenu(){
