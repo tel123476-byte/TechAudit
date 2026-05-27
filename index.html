@@ -2896,7 +2896,16 @@ function toggleAdminMenu(e){
     m.style.display = 'none';
     return;
   }
-  // Najdi pozici tlačítka a umísti menu pod něj
+  // Přesuň do body aby uniklo z overflow:hidden v am-header
+  if (m.parentNode && m.parentNode.id !== 'body-menus') {
+    var container = document.getElementById('body-menus');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'body-menus';
+      document.body.appendChild(container);
+    }
+    container.appendChild(m);
+  }
   var btn = e ? e.target : null;
   if (btn) {
     var rect = btn.getBoundingClientRect();
@@ -2915,6 +2924,16 @@ function toggleAuditorMenu(e){
   var m = document.getElementById('auditor-menu');
   if (!m) return;
   if (m.style.display === 'block') { m.style.display = 'none'; return; }
+  // Přesuň menu do body aby uniklo z overflow:hidden v topbaru
+  if (m.parentNode && m.parentNode.id !== 'body-menus') {
+    var container = document.getElementById('body-menus');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'body-menus';
+      document.body.appendChild(container);
+    }
+    container.appendChild(m);
+  }
   var btn = e ? e.target : null;
   if (btn) {
     var rect = btn.getBoundingClientRect();
@@ -2933,6 +2952,15 @@ function toggleEditorAdminMenu(e){
   var m = document.getElementById('editor-admin-menu');
   if (!m) return;
   if (m.style.display === 'block') { m.style.display = 'none'; return; }
+  if (m.parentNode && m.parentNode.id !== 'body-menus') {
+    var container = document.getElementById('body-menus');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'body-menus';
+      document.body.appendChild(container);
+    }
+    container.appendChild(m);
+  }
   var btn = e ? e.target : null;
   if (btn) {
     var rect = btn.getBoundingClientRect();
