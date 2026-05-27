@@ -925,20 +925,20 @@ window.addEventListener('load', function(){
         <div class="am-sync-dot" id="am-sync-dot"></div>
         <span id="am-sync-txt">Načítám...</span>
       </div>
-      <div class="admin-only" style="position:relative;display:inline-block">
+      <div style="position:relative;display:inline-block">
         <button class="btn btn-g" onclick="toggleAdminMenu(event)" style="font-size:11px">☰ Menu</button>
         <div id="admin-menu" style="display:none;position:fixed;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.15);min-width:220px;z-index:99999;overflow:hidden">
-          <button onclick="hideAdminMenu();openCostsScreen()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">💼 Náklady</button>
-          <button onclick="hideAdminMenu();openBudgetScreen()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">💰 Rozpočty</button>
-          <button onclick="hideAdminMenu();openAuditHistory()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">🕐 Historie auditů</button>
-          <button onclick="hideAdminMenu();openUsers()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">👥 Uživatelé</button>
+          <button class="admin-only" onclick="hideAdminMenu();openCostsScreen()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">💼 Náklady</button>
+          <button class="admin-only" onclick="hideAdminMenu();openBudgetScreen()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">💰 Rozpočty</button>
+          <button class="admin-only" onclick="hideAdminMenu();openAuditHistory()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">🕐 Historie auditů</button>
+          <button class="admin-only" onclick="hideAdminMenu();openUsers()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">👥 Uživatelé</button>
+          <button onclick="hideAdminMenu();doLogout()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:2px solid #fee2e2;color:#991b1b;font-weight:600" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">🚪 Odhlásit</button>
         </div>
       </div>
       <button id="pwa-install-btn" onclick="installPWA()" style="display:none;align-items:center;gap:6px;padding:7px 12px;background:#0d9488;border:none;color:#fff;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer">
         📲 Přidat na plochu
       </button>
       <div id="am-user-info" style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:#f1f5f9;border-radius:8px;border:1px solid #e2e8f0"></div>
-      <button class="btn btn-g" onclick="doLogout()" style="font-size:11px">Odhlásit</button>
     </div>
   </div>
 
@@ -1045,6 +1045,7 @@ window.addEventListener('load', function(){
       <button onclick="hideAuditorMenu();openListModal()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">📋 Vady</button>
       <button onclick="hideAuditorMenu();showSettings()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">🏷 Typy záznamů</button>
       <button onclick="hideAuditorMenu();showShareLink()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">🔗 Sdílet</button>
+      <button onclick="hideAuditorMenu();doLogout()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:2px solid #fee2e2;color:#991b1b;font-weight:600" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">🚪 Odhlásit</button>
     </div>
   </div>
   <!-- Menu pro admina v editoru -->
@@ -1057,6 +1058,7 @@ window.addEventListener('load', function(){
       <button onclick="hideEditorAdminMenu();openExportDlg()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">📄 Export</button>
       <button onclick="hideEditorAdminMenu();doArchive()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">📦 Archiv ZIP</button>
       <button onclick="hideEditorAdminMenu();toggleAuditDone()" id="menu-btn-finish" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:1px solid #f1f5f9;font-weight:600;color:#2d6b26" onmouseover="this.style.background='#f0f7ee'" onmouseout="this.style.background='#fff'">✓ Dokončit audit</button>
+      <button onclick="hideEditorAdminMenu();doLogout()" style="display:block;width:100%;text-align:left;padding:12px 16px;border:0;background:#fff;cursor:pointer;font-size:13px;border-top:2px solid #fee2e2;color:#991b1b;font-weight:600" onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">🚪 Odhlásit</button>
     </div>
   </div>
   <button id="btn-timer" class="btn" onclick="toggleTimer()" style="background:#d1fae5;color:#065f46;border:1px solid #6ee7b7;font-weight:700">▶ Zahájit</button>
