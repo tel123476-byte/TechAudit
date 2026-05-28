@@ -4193,7 +4193,7 @@ function confirmAdd(){
     discipline:document.getElementById('mdisc').value,
     location:document.getElementById('mloc').value.trim(),
     price:parseFloat(document.getElementById('mprice').value)||0,
-    solution:'',photos:mPhotos.slice(),
+    solution:'',photos:mPhotos.slice(),photos_thumb:[],
     px:pending.px,py:pending.py,page:pending.page,
     floorId:pending.floorId,floorName:pending.floorName,
     addedBy: currentUser ? currentUser.name : '',
@@ -4203,7 +4203,17 @@ function confirmAdd(){
   floor().defects.push(d);
   closeMod();renderAll();renderFloorTabs();
   toast('✓ Přidáno na '+floor().name);openPanel(d.id);
-  scheduleSync();
+  // Vygeneruj thumbnaily pro cloud sync (asynchronně, pak synchronizuj)
+  (async function(){
+    var photosToThumb = mPhotos.slice();
+    for (var i = 0; i < photosToThumb.length; i++) {
+      try {
+        var thumb = await resizePhoto(photosToThumb[i], 400, 500, 0.7);
+        d.photos_thumb.push(thumb);
+      } catch(e) { d.photos_thumb.push(photosToThumb[i]); }
+    }
+    scheduleSync();
+  })();
 }
 
 // ── TYPE SELECT ────────────────────────────────────────────────
