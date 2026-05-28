@@ -4204,19 +4204,23 @@ function confirmAdd(){
     time:new Date().toLocaleTimeString('cs-CZ',{hour:'2-digit',minute:'2-digit'})
   };
   floor().defects.push(d);
+  // ULOŽ fotky PŘED closeMod (který vymaže mPhotos!)
+  var photosToThumb = mPhotos.slice();
   closeMod();renderAll();renderFloorTabs();
   toast('✓ Přidáno na '+floor().name);openPanel(d.id);
   // Vygeneruj thumbnaily pro cloud sync (asynchronně, pak synchronizuj)
   (async function(){
-    var photosToThumb = mPhotos.slice();
     for (var i = 0; i < photosToThumb.length; i++) {
       try {
-        var thumbB64 = await resizePhoto(photosToThumb[i], 400, 500, 0.7);
-        // resizePhoto vrací base64 BEZ prefixu - přidej ho zpět
-        var thumbWithPrefix = thumbB64.indexOf('data:') === 0 ? thumbB64 : 'data:image/jpeg;base64,' + thumbB64;
-        d.photos_thumb.push(thumbWithPrefix);
-      } catch(e) { d.photos_thumb.push(photosToThumb[i]); }
+        var thumb = await makeThumb(photosToThumb[i], 400, 500, 0.7);
+        d.photos_thumb.push(thumb);
+        console.log('[THUMB] Vytvořen thumbnail '+(i+1)+', '+Math.round(thumb.length/1024)+' KB');
+      } catch(e) {
+        console.warn('[THUMB] Chyba:', e);
+        d.photos_thumb.push(photosToThumb[i]);
+      }
     }
+    console.log('[THUMB] Hotovo, celkem '+d.photos_thumb.length+' thumbnailů');
     scheduleSync();
   })();
 }
@@ -4385,11 +4389,10 @@ function addPh(files){
     var thumbSizeKB = 0;
     for (var i = 0; i < imgs.length; i++) {
       try {
-        var thumbB64 = await resizePhoto(imgs[i], 400, 500, 0.7);
-        var thumb = thumbB64.indexOf('data:') === 0 ? thumbB64 : 'data:image/jpeg;base64,' + thumbB64;
+        var thumb = await makeThumb(imgs[i], 400, 500, 0.7);
         d.photos_thumb.push(thumb);
         thumbSizeKB += Math.round(thumb.length / 1024);
-        console.log('[ADD_PHOTO] Thumbnail '+(i+1)+' size: '+Math.round(thumb.length/1024)+' KB, original: '+Math.round(imgs[i].length/1024)+' KB');
+        console.log('[ADD_PHOTO] Thumbnail '+(i+1)+' size: '+Math.round(thumb.length/1024)+' KB');
       } catch(e) {
         console.warn('[ADD_PHOTO] Resize failed:', e);
         d.photos_thumb.push(imgs[i]);
