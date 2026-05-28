@@ -1980,7 +1980,10 @@ async function saveToFirebase() {
     };
     // Diagnostika velikosti dokumentu
     var jsonSize = JSON.stringify(data).length;
-    console.log('[SYNC] Firestore document size: '+Math.round(jsonSize/1024)+' KB');
+    var thumbCount = 0;
+    data.floors.forEach(function(f){ f.defects.forEach(function(d){ if(d.photos_thumb) thumbCount += d.photos_thumb.length; }); });
+    console.log('[SYNC] Firestore document size: '+Math.round(jsonSize/1024)+' KB, thumbnails: '+thumbCount);
+    toast('Sync: '+Math.round(jsonSize/1024)+' KB, '+thumbCount+' fotek');
     if (jsonSize > 900000) {
       console.warn('[SYNC] Document size approaching Firestore 1MB limit!');
       toast('⚠️ Audit je velký ('+Math.round(jsonSize/1024)+' KB) — limit 1024 KB');
@@ -4208,8 +4211,10 @@ function confirmAdd(){
     var photosToThumb = mPhotos.slice();
     for (var i = 0; i < photosToThumb.length; i++) {
       try {
-        var thumb = await resizePhoto(photosToThumb[i], 400, 500, 0.7);
-        d.photos_thumb.push(thumb);
+        var thumbB64 = await resizePhoto(photosToThumb[i], 400, 500, 0.7);
+        // resizePhoto vrací base64 BEZ prefixu - přidej ho zpět
+        var thumbWithPrefix = thumbB64.indexOf('data:') === 0 ? thumbB64 : 'data:image/jpeg;base64,' + thumbB64;
+        d.photos_thumb.push(thumbWithPrefix);
       } catch(e) { d.photos_thumb.push(photosToThumb[i]); }
     }
     scheduleSync();
@@ -4361,9 +4366,14 @@ function openPanel(id){
   renderAll();
 }
 function renderPPh(d){
-  document.getElementById('pgrid').innerHTML=d.photos.map(function(src,i){
+  var grid = document.getElementById('pgrid');
+  grid.innerHTML=d.photos.map(function(src,i){
     return '<div class="pitem"><img src="'+src+'"><button class="prm" onclick="rmPh('+i+')">✕</button></div>';
   }).join('');
+  // Diagnostika - pokud nejsou fotky ale mají být
+  if (d.photos.length === 0 && d.photoCount > 0) {
+    grid.innerHTML = '<div style="padding:12px;color:#92400e;background:#fef3c7;border-radius:6px;font-size:12px">⚠️ Vada má '+d.photoCount+' fotek, ale nejsou dostupné na tomto zařízení (nebyly synchronizovány z mobilu).</div>';
+  }
 }
 function rmPh(i){var d=findDefect(aId);if(!d)return;d.photos.splice(i,1);if(d.photos_thumb)d.photos_thumb.splice(i,1);renderPPh(d);renderList();scheduleSync();}
 function addPh(files){
@@ -4375,7 +4385,8 @@ function addPh(files){
     var thumbSizeKB = 0;
     for (var i = 0; i < imgs.length; i++) {
       try {
-        var thumb = await resizePhoto(imgs[i], 400, 500, 0.7);
+        var thumbB64 = await resizePhoto(imgs[i], 400, 500, 0.7);
+        var thumb = thumbB64.indexOf('data:') === 0 ? thumbB64 : 'data:image/jpeg;base64,' + thumbB64;
         d.photos_thumb.push(thumb);
         thumbSizeKB += Math.round(thumb.length / 1024);
         console.log('[ADD_PHOTO] Thumbnail '+(i+1)+' size: '+Math.round(thumb.length/1024)+' KB, original: '+Math.round(imgs[i].length/1024)+' KB');
@@ -4774,6 +4785,21 @@ function resizePhoto(src,maxW,maxH,quality){
       cv.getContext('2d').drawImage(img,0,0,w,h);
       var dataUrl=cv.toDataURL('image/jpeg',quality||0.88);
       res(dataUrl.split(',')[1]);
+    };img.onerror=rej;img.src=src;
+  });
+}
+
+// Thumbnail pro cloud sync - zachovává plný data URL (s prefixem), aby šel přímo zobrazit
+function makeThumb(src,maxW,maxH,quality){
+  return new Promise(function(res,rej){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.naturalWidth,h=img.naturalHeight;
+      var ratio=Math.min(maxW/w,maxH/h,1);
+      w=Math.round(w*ratio);h=Math.round(h*ratio);
+      var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      res(cv.toDataURL('image/jpeg',quality||0.7)); // PLNÝ data URL s prefixem
     };img.onerror=rej;img.src=src;
   });
 }
