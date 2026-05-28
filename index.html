@@ -1978,11 +1978,20 @@ async function saveToFirebase() {
       }),
       cats: cats
     };
+    // Diagnostika velikosti dokumentu
+    var jsonSize = JSON.stringify(data).length;
+    console.log('[SYNC] Firestore document size: '+Math.round(jsonSize/1024)+' KB');
+    if (jsonSize > 900000) {
+      console.warn('[SYNC] Document size approaching Firestore 1MB limit!');
+      toast('⚠️ Audit je velký ('+Math.round(jsonSize/1024)+' KB) — limit 1024 KB');
+    }
     await db.collection('audits').doc(auditId).set(data, { merge: true });
+    console.log('[SYNC] Upload successful');
     updateSyncIndicator('online');
     await saveLocalPhotos();
   } catch(err) {
-    console.warn('Firebase sync error:', err);
+    console.error('[SYNC] Firebase sync error:', err);
+    toast('⚠️ Chyba synchronizace: ' + (err.message || err));
     updateSyncIndicator('offline');
   }
 }
@@ -4353,16 +4362,22 @@ function addPh(files){
     d.photos=d.photos.concat(imgs);
     // Vygeneruj thumbnaily pro cloud sync (max 400x500, kvalita 70%)
     if (!d.photos_thumb) d.photos_thumb = [];
+    var thumbSizeKB = 0;
     for (var i = 0; i < imgs.length; i++) {
       try {
         var thumb = await resizePhoto(imgs[i], 400, 500, 0.7);
         d.photos_thumb.push(thumb);
-      } catch(e) { d.photos_thumb.push(imgs[i]); }
+        thumbSizeKB += Math.round(thumb.length / 1024);
+        console.log('[ADD_PHOTO] Thumbnail '+(i+1)+' size: '+Math.round(thumb.length/1024)+' KB, original: '+Math.round(imgs[i].length/1024)+' KB');
+      } catch(e) {
+        console.warn('[ADD_PHOTO] Resize failed:', e);
+        d.photos_thumb.push(imgs[i]);
+      }
     }
     renderPPh(d);
     renderList();
-    toast('+'+imgs.length+' foto');
-    scheduleSync(); // Spustí synchronizaci s cloudem
+    toast('+'+imgs.length+' foto (thumb '+thumbSizeKB+' KB)');
+    scheduleSync();
   });
 }
 function savePanel(){
