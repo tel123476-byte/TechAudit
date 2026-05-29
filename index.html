@@ -2171,6 +2171,7 @@ function defectFromFirebase(d, localPhotos) {
   // Pokud nejsou lokální fotky, použij thumbnaily z cloudu
   var usingCloudThumb = localFotos.length === 0 && d.photos_thumb && d.photos_thumb.length > 0;
   var photos = usingCloudThumb ? d.photos_thumb : localFotos;
+  console.log('[LOAD_DEFECT] id='+d.id+' localFotos='+localFotos.length+' cloudThumb='+((d.photos_thumb&&d.photos_thumb.length)||0)+' → použito='+photos.length);
   return {
     id: d.id,
     type: d.type,
@@ -3705,7 +3706,7 @@ async function initApp() {
         zoom: existingFloor ? existingFloor.zoom : 1,
         planSrc: existingFloor ? existingFloor.planSrc : '',
         defects: f.defects.map(function(d) {
-          return Object.assign({}, d, { photos: localPhotos[d.id] || [] });
+          return defectFromFirebase(d, localPhotos);
         })
       };
     });
